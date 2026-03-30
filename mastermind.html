@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mastermind</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;600;800&family=Playfair+Display:wght@700&display=swap" rel="stylesheet" />
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Baloo 2', cursive; }
+    @keyframes shake {
+      0%,100%{transform:translateX(0)}
+      20%{transform:translateX(-8px)}
+      40%{transform:translateX(8px)}
+      60%{transform:translateX(-5px)}
+      80%{transform:translateX(5px)}
+    }
+    @keyframes pop {
+      0%{transform:scale(0.7);opacity:0}
+      70%{transform:scale(1.1)}
+      100%{transform:scale(1);opacity:1}
+    }
+    @keyframes slideIn {
+      0%{transform:translateY(-10px);opacity:0}
+      100%{transform:translateY(0);opacity:1}
+    }
+    .shake { animation: shake 0.4s ease; }
+    .pop   { animation: pop   0.5s ease; }
+    .slide { animation: slideIn 0.25s ease; }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState } = React;
+
+const COLORS = [
+  { id: "black",  hex: "#1a1a1a", label: "Black"  },
+  { id: "white",  hex: "#f0ece0", label: "White"  },
+  { id: "yellow", hex: "#F5C800", label: "Yellow" },
+  { id: "blue",   hex: "#1565C0", label: "Blue"   },
+  { id: "green",  hex: "#2E7D32", label: "Green"  },
+  { id: "red",    hex: "#C62828", label: "Red"    },
+];
+
+const CODE_LENGTH = 4;
+const MAX_GUESSES = 10;
+
+function generateCode() {
+  return Array.from({ length: CODE_LENGTH }, () =>
+    COLORS[Math.floor(Math.random() * COLORS.length)].id
+  );
+}
+
+function getColorHex(id) {
+  return COLORS.find(c => c.id === id)?.hex ?? "#2a2a3a";
+}
+
+function scoreFeedback(secret, guess) {
+  let blacks = 0, whites = 0;
+  const sLeft = [], gLeft = [];
+  for (let i = 0; i < CODE_LENGTH; i++) {
+    if (guess[i] === secret[i]) blacks++;
+    else { sLeft.push(secret[i]); gLeft.push(guess[i]); }
+  }
+  for (const g of gLeft) {
+    const idx = sLeft.indexOf(g);
+    if (idx !== -1) { whites++; sLeft.splice(idx, 1); }
+  }
+  return { blacks, whites };
+}
+
+function Peg({ color, size = 38, onClick }) {
+  const bg = color ? getColorHex(color) : "transparent";
+  const isWhite = color === "white";
+  return (
+    <div onClick={onClick} style={{
+      width: size, height: size, borderRadius: "50%", flexShrink: 0,
+      background: color
+        ? `radial-gradient(circle at 35% 35%, ${bg}ff, ${bg}bb)`
+        : "rgba(100,60,20,0.35)",
+      border: color
+        ? (isWhite ? "2px solid rgba(160,140,100,0.6)" : "none")
+        : "2px dashed rgba(245,220,160,0.2)",
+      boxShadow: color
+        ? "0 4px 14px rgba(0,0,0,0.5), inset 0 2px 4px rgba(255,255,255,0.35)"
+        : "inset 0 2px 8px rgba(0,0,0,0.5)",
+      cursor: onClick ? "pointer" : "default",
+      transition: "transform 0.12s",
+    }} />
+  );
+}
+
+function FeedbackDots({ blacks, whites }) {
+  const dots = [
+    ...Array(blacks).fill("black"),
+    ...Array(whites).fill("white"),
+    ...Array(CODE_LENGTH - blacks - whites).fill("empty"),
+  ];
+  return (
+    <div style={{
+      display: "grid", gridTemplateColumns: "1fr 1fr",
+      gap: 4, width: 40, height: 40,
+      alignItems: "center", justifyItems: "center", padding: 2,
+    }}>
+      {dots.map((d, i) => (
+        <div key={i} style={{
+          width: 14, height: 14, borderRadius: "50%",
+          background: d === "black"
+            ? "radial-gradient(circle at 40% 35%, #4a4a6a, #0d0d1a)"
+            : d === "white"
+            ? "radial-gradient(circle at 40% 35%, #ffffff, #c0c0d0)"
+            : "transparent",
+          boxShadow: d === "black"
+            ? "0 1px 4px rgba(0,0,0,0.8), inset 0 1px 2px rgba(255,255,255,0.15)"
+            : d === "white"
+            ? "0 1px 5px rgba(255,255,255,0.5), inset 0 1px 2px rgba(255,255,255,0.8)"
+            : "none",
+          border: d === "empty" ? "1.5px solid rgba(255,255,255,0.15)" : "none",
+        }} />
+      ))}
+    </div>
+  );
+}
+
+function ColorPicker({ selected, onSelect }) {
+  return (
+    <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
+      {COLORS.map(c => (
+        <div key={c.id} onClick={() => onSelect(c.id)} title={c.label} style={{
+          width: 46, height: 46, borderRadius: "50%",
+          background: `radial-gradient(circle at 35% 35%, ${c.hex}ff, ${c.hex}bb)`,
+          border: c.id === "white" ? "2px solid rgba(160,140,100,0.5)" : "none",
+          boxShadow: selected === c.id
+            ? `0 0 0 3px #3a1f08, 0 0 0 5px ${c.hex === "#f0ece0" ? "#b0a080" : c.hex}, 0 6px 20px rgba(0,0,0,0.4)`
+            : "0 3px 10px rgba(0,0,0,0.5)",
+          cursor: "pointer",
+          transition: "transform 0.13s, box-shadow 0.13s",
+          transform: selected === c.id ? "scale(1.22)" : "scale(1)",
+        }} />
+      ))}
+    </div>
+  );
+}
+
+function SecretReveal({ code, show }) {
+  return (
+    <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
+      {code.map((c, i) =>
+        show ? (
+          <Peg key={i} color={c} size={38} />
+        ) : (
+          <div key={i} style={{
+            width: 38, height: 38, borderRadius: "50%",
+            background: "radial-gradient(circle at 40% 35%, #3a2010, #1a0c04)",
+            boxShadow: "inset 0 3px 10px rgba(0,0,0,0.9), 0 2px 6px rgba(0,0,0,0.5)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: 17, color: "rgba(245,220,160,0.2)",
+            fontFamily: "'Baloo 2', cursive", fontWeight: 800,
+            border: "2px solid rgba(245,220,160,0.1)",
+          }}>?</div>
+        )
+      )}
+    </div>
+  );
+}
+
+function App() {
+  const [secret, setSecret]           = useState(() => generateCode());
+  const [history, setHistory]         = useState([]);
+  const [current, setCurrent]         = useState(Array(CODE_LENGTH).fill(null));
+  const [selectedColor, setSelected]  = useState(COLORS[0].id);
+  const [gameOver, setGameOver]       = useState(false);
+  const [revealSecret, setReveal]     = useState(false);
+  const [shake, setShake]             = useState(false);
+
+  const won  = gameOver === "win";
+
+  function handlePegClick(i) {
+    if (gameOver) return;
+    setCurrent(prev => {
+      const next = [...prev];
+      next[i] = next[i] === selectedColor ? null : selectedColor;
+      return next;
+    });
+  }
+
+  function handleSubmit() {
+    if (gameOver) return;
+    if (current.some(c => c === null)) {
+      setShake(true);
+      setTimeout(() => setShake(false), 500);
+      return;
+    }
+    const feedback = scoreFeedback(secret, current);
+    const newHistory = [...history, { guess: current, feedback }];
+    setHistory(newHistory);
+    setCurrent(Array(CODE_LENGTH).fill(null));
+    if (feedback.blacks === CODE_LENGTH) {
+      setGameOver("win"); setReveal(true);
+    } else if (newHistory.length >= MAX_GUESSES) {
+      setGameOver("lose"); setReveal(true);
+    }
+  }
+
+  function handleReset() {
+    setSecret(generateCode());
+    setHistory([]);
+    setCurrent(Array(CODE_LENGTH).fill(null));
+    setSelected(COLORS[0].id);
+    setGameOver(false);
+    setReveal(false);
+    setShake(false);
+  }
+
+  const woodBg = `
+    repeating-linear-gradient(92deg, transparent 0px, transparent 2px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 3px),
+    repeating-linear-gradient(88deg, transparent 0px, transparent 8px, rgba(255,255,255,0.04) 8px, rgba(255,255,255,0.04) 9px),
+    repeating-linear-gradient(91deg, transparent 0px, transparent 18px, rgba(0,0,0,0.04) 18px, rgba(0,0,0,0.04) 22px),
+    linear-gradient(170deg, #8B5E3C 0%, #6B3F20 30%, #7A4E2D 55%, #5C3317 80%, #6B3F20 100%)
+  `;
+
+  return (
+    <div style={{
+      minHeight: "100vh",
+      background: woodBg,
+      display: "flex", flexDirection: "column", alignItems: "center",
+      padding: "18px 12px 32px",
+      fontFamily: "'Baloo 2', cursive",
+    }}>
+
+      {/* ── Header ── */}
+      <div style={{ textAlign: "center", marginBottom: 14 }}>
+        <h1 style={{
+          margin: 0, fontSize: 36, fontWeight: 700,
+          fontFamily: "'Playfair Display', serif",
+          color: "#F5E6C8",
+          textShadow: "0 2px 8px rgba(0,0,0,0.5), 0 1px 0 rgba(255,255,255,0.15)",
+          letterSpacing: 2,
+        }}>MASTERMIND</h1>
+        <p style={{ color: "rgba(245,230,200,0.55)", margin: "3px 0 0", fontSize: 11, letterSpacing: 3 }}>
+          CRACK THE CODE · {MAX_GUESSES} GUESSES · 6 COLORS
+        </p>
+      </div>
+
+      {/* ── Secret Code ── */}
+      <div style={{
+        background: "rgba(40,20,8,0.55)", borderRadius: 14,
+        padding: "10px 22px", marginBottom: 10, textAlign: "center",
+        border: "2px solid rgba(245,220,160,0.18)",
+        boxShadow: "0 4px 18px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.07)",
+      }}>
+        <div style={{ fontSize: 10, color: "rgba(245,220,160,0.5)", letterSpacing: 3, marginBottom: 8, fontWeight: 600 }}>
+          SECRET CODE
+        </div>
+        <SecretReveal code={secret} show={revealSecret} />
+      </div>
+
+      {/* ── Legend ── */}
+      <div style={{ display: "flex", gap: 16, marginBottom: 10, fontSize: 11, color: "rgba(245,220,160,0.6)", alignItems: "center" }}>
+        <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
+          <span style={{ display:"inline-block", width:11, height:11, borderRadius:"50%",
+            background:"radial-gradient(circle at 40% 35%, #3a3a3a, #0a0a0a)",
+            boxShadow:"0 1px 4px rgba(0,0,0,0.9), inset 0 1px 1px rgba(255,255,255,0.1)" }} />
+          Right color + spot
+        </span>
+        <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
+          <span style={{ display:"inline-block", width:11, height:11, borderRadius:"50%",
+            background:"radial-gradient(circle at 40% 35%, #ffffff, #d0ccc0)",
+            boxShadow:"0 1px 4px rgba(255,255,255,0.35)",
+            border:"1px solid rgba(180,170,150,0.5)" }} />
+          Right color, wrong spot
+        </span>
+      </div>
+
+      {/* ── Board ── */}
+      <div style={{
+        background: "rgba(40,20,8,0.45)", borderRadius: 18, padding: "10px 8px",
+        border: "2px solid rgba(245,220,160,0.15)",
+        boxShadow: "0 6px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06)",
+        width: "100%", maxWidth: 380, marginBottom: 12,
+      }}>
+        {/* Submitted rows */}
+        {history.map((entry, i) => (
+          <div key={i} className="slide" style={{
+            display: "flex", alignItems: "center", gap: 10,
+            padding: "5px 12px", borderRadius: 10,
+            borderBottom: i < history.length - 1 ? "1px solid rgba(245,220,160,0.07)" : "none",
+          }}>
+            <div style={{ width: 20, textAlign: "right", fontSize: 11, color: "rgba(245,220,160,0.35)", flexShrink: 0, fontWeight: 600 }}>
+              {i + 1}
+            </div>
+            <div style={{ display: "flex", gap: 7, flex: 1, justifyContent: "center" }}>
+              {entry.guess.map((c, j) => <Peg key={j} color={c} size={36} />)}
+            </div>
+            <div style={{ flexShrink: 0 }}>
+              <FeedbackDots blacks={entry.feedback.blacks} whites={entry.feedback.whites} />
+            </div>
+          </div>
+        ))}
+
+        {/* Active input row */}
+        {!gameOver && (
+          <div className={shake ? "shake" : ""} style={{
+            background: "rgba(245,220,160,0.07)",
+            border: "1.5px solid rgba(245,220,160,0.22)",
+            borderRadius: 12, padding: "10px 12px",
+            marginTop: history.length > 0 ? 6 : 0,
+          }}>
+            <div style={{ fontSize: 10, color: "rgba(245,220,160,0.45)", letterSpacing: 3, textAlign: "center", marginBottom: 9, fontWeight: 600 }}>
+              GUESS {history.length + 1} OF {MAX_GUESSES}
+            </div>
+            <div style={{ display: "flex", gap: 8, justifyContent: "center", marginBottom: 12 }}>
+              {Array.from({ length: CODE_LENGTH }).map((_, i) => (
+                <Peg key={i} color={current[i] ?? null} size={44} onClick={() => handlePegClick(i)} />
+              ))}
+            </div>
+            <ColorPicker selected={selectedColor} onSelect={setSelected} />
+            <button onClick={handleSubmit} style={{
+              width: "100%", padding: "11px", marginTop: 12,
+              borderRadius: 10, border: "none",
+              background: current.every(Boolean)
+                ? "linear-gradient(135deg, #8B2500, #C62828)"
+                : "rgba(245,220,160,0.08)",
+              color: current.every(Boolean) ? "#F5E6C8" : "rgba(245,220,160,0.25)",
+              fontSize: 14, fontWeight: 700, fontFamily: "'Baloo 2', cursive",
+              cursor: current.every(Boolean) ? "pointer" : "not-allowed",
+              letterSpacing: 1.5,
+              boxShadow: current.every(Boolean) ? "0 4px 16px rgba(140,37,0,0.5)" : "none",
+              transition: "all 0.2s",
+            }}>
+              CHECK GUESS ✓
+            </button>
+          </div>
+        )}
+
+        {!gameOver && history.length === 0 && (
+          <p style={{ fontSize: 11, color: "rgba(245,220,160,0.3)", textAlign: "center", margin: "4px 0 6px" }}>
+            Pick a color → tap a slot → submit!
+          </p>
+        )}
+      </div>
+
+      {/* ── Game Over Banner ── */}
+      {gameOver && (
+        <div className="pop" style={{
+          background: won
+            ? "linear-gradient(135deg, rgba(20,80,30,0.95), rgba(10,50,20,0.95))"
+            : "linear-gradient(135deg, rgba(100,15,5,0.95), rgba(70,10,0,0.95))",
+          border: `2px solid ${won ? "rgba(100,200,80,0.5)" : "rgba(200,40,20,0.5)"}`,
+          borderRadius: 18, padding: "18px 24px", textAlign: "center",
+          width: "100%", maxWidth: 380, marginBottom: 12,
+          boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
+        }}>
+          <div style={{ fontSize: 34, marginBottom: 4 }}>{won ? "🎉" : "💀"}</div>
+          <div style={{ fontSize: 22, fontWeight: 700, fontFamily: "'Playfair Display', serif", color: "#F5E6C8", marginBottom: 4 }}>
+            {won ? "YOU CRACKED IT!" : "GAME OVER"}
+          </div>
+          <div style={{ fontSize: 13, color: "rgba(245,230,200,0.75)", marginBottom: 14 }}>
+            {won
+              ? `Solved in ${history.length} guess${history.length === 1 ? "" : "es"}! 🧠`
+              : "The code is revealed above."}
+          </div>
+          <button onClick={handleReset} style={{
+            padding: "11px 28px", borderRadius: 10, border: "none",
+            background: "#F5E6C8", color: won ? "#1a4d10" : "#8B1500",
+            fontSize: 14, fontWeight: 800, fontFamily: "'Baloo 2', cursive",
+            cursor: "pointer", letterSpacing: 0.5,
+            boxShadow: "0 2px 10px rgba(0,0,0,0.3)",
+          }}>
+            PLAY AGAIN →
+          </button>
+        </div>
+      )}
+
+      {/* ── New Game button ── */}
+      {!gameOver && (
+        <button onClick={handleReset} style={{
+          padding: "8px 20px", borderRadius: 10,
+          border: "1.5px solid rgba(245,220,160,0.25)",
+          background: "rgba(40,20,8,0.35)", color: "rgba(245,220,160,0.45)",
+          fontSize: 12, fontFamily: "'Baloo 2', cursive",
+          cursor: "pointer", letterSpacing: 0.5,
+        }}>
+          ↺ New Game
+        </button>
+      )}
+    </div>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById("root"));
+root.render(<App />);
+</script>
+</body>
+</html>
