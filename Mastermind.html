@@ -1,0 +1,947 @@
+<!DOCTYPE html>
+<!-- saved from url=(0053)file:///Users/brianmoynihan/Downloads/mastermind.html -->
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mastermind</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com/">
+  <link href="./Mastermind_files/css2" rel="stylesheet">
+  <script src="./Mastermind_files/react.production.min.js"></script>
+  <script src="./Mastermind_files/react-dom.production.min.js"></script>
+  <script src="./Mastermind_files/babel.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Baloo 2', cursive; }
+    @keyframes shake {
+      0%,100%{transform:translateX(0)}
+      20%{transform:translateX(-8px)}
+      40%{transform:translateX(8px)}
+      60%{transform:translateX(-5px)}
+      80%{transform:translateX(5px)}
+    }
+    @keyframes pop {
+      0%{transform:scale(0.7);opacity:0}
+      70%{transform:scale(1.1)}
+      100%{transform:scale(1);opacity:1}
+    }
+    @keyframes slideIn {
+      0%{transform:translateY(-10px);opacity:0}
+      100%{transform:translateY(0);opacity:1}
+    }
+    .shake { animation: shake 0.4s ease; }
+    .pop   { animation: pop   0.5s ease; }
+    .slide { animation: slideIn 0.25s ease; }
+  </style>
+<script>"use strict";
+
+function _slicedToArray(r, e) { return _arrayWithHoles(r) || _iterableToArrayLimit(r, e) || _unsupportedIterableToArray(r, e) || _nonIterableRest(); }
+function _nonIterableRest() { throw new TypeError("Invalid attempt to destructure non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); }
+function _iterableToArrayLimit(r, l) { var t = null == r ? null : "undefined" != typeof Symbol && r[Symbol.iterator] || r["@@iterator"]; if (null != t) { var e, n, i, u, a = [], f = !0, o = !1; try { if (i = (t = t.call(r)).next, 0 === l) { if (Object(t) !== t) return; f = !1; } else for (; !(f = (e = i.call(t)).done) && (a.push(e.value), a.length !== l); f = !0); } catch (r) { o = !0, n = r; } finally { try { if (!f && null != t["return"] && (u = t["return"](), Object(u) !== u)) return; } finally { if (o) throw n; } } return a; } }
+function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
+function _toConsumableArray(r) { return _arrayWithoutHoles(r) || _iterableToArray(r) || _unsupportedIterableToArray(r) || _nonIterableSpread(); }
+function _nonIterableSpread() { throw new TypeError("Invalid attempt to spread non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); }
+function _unsupportedIterableToArray(r, a) { if (r) { if ("string" == typeof r) return _arrayLikeToArray(r, a); var t = {}.toString.call(r).slice(8, -1); return "Object" === t && r.constructor && (t = r.constructor.name), "Map" === t || "Set" === t ? Array.from(r) : "Arguments" === t || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(t) ? _arrayLikeToArray(r, a) : void 0; } }
+function _iterableToArray(r) { if ("undefined" != typeof Symbol && null != r[Symbol.iterator] || null != r["@@iterator"]) return Array.from(r); }
+function _arrayWithoutHoles(r) { if (Array.isArray(r)) return _arrayLikeToArray(r); }
+function _arrayLikeToArray(r, a) { (null == a || a > r.length) && (a = r.length); for (var e = 0, n = Array(a); e < a; e++) n[e] = r[e]; return n; }
+var _React = React,
+  useState = _React.useState;
+var COLORS = [{
+  id: "black",
+  hex: "#1a1a1a",
+  label: "Black"
+}, {
+  id: "white",
+  hex: "#f0ece0",
+  label: "White"
+}, {
+  id: "yellow",
+  hex: "#F5C800",
+  label: "Yellow"
+}, {
+  id: "blue",
+  hex: "#1565C0",
+  label: "Blue"
+}, {
+  id: "green",
+  hex: "#2E7D32",
+  label: "Green"
+}, {
+  id: "red",
+  hex: "#C62828",
+  label: "Red"
+}];
+var CODE_LENGTH = 4;
+var MAX_GUESSES = 10;
+function generateCode() {
+  return Array.from({
+    length: CODE_LENGTH
+  }, function () {
+    return COLORS[Math.floor(Math.random() * COLORS.length)].id;
+  });
+}
+function getColorHex(id) {
+  var _COLORS$find$hex, _COLORS$find;
+  return (_COLORS$find$hex = (_COLORS$find = COLORS.find(function (c) {
+    return c.id === id;
+  })) === null || _COLORS$find === void 0 ? void 0 : _COLORS$find.hex) !== null && _COLORS$find$hex !== void 0 ? _COLORS$find$hex : "#2a2a3a";
+}
+function scoreFeedback(secret, guess) {
+  var blacks = 0,
+    whites = 0;
+  var sLeft = [],
+    gLeft = [];
+  for (var i = 0; i < CODE_LENGTH; i++) {
+    if (guess[i] === secret[i]) blacks++;else {
+      sLeft.push(secret[i]);
+      gLeft.push(guess[i]);
+    }
+  }
+  for (var _i = 0, _gLeft = gLeft; _i < _gLeft.length; _i++) {
+    var g = _gLeft[_i];
+    var idx = sLeft.indexOf(g);
+    if (idx !== -1) {
+      whites++;
+      sLeft.splice(idx, 1);
+    }
+  }
+  return {
+    blacks: blacks,
+    whites: whites
+  };
+}
+function Peg(_ref) {
+  var color = _ref.color,
+    _ref$size = _ref.size,
+    size = _ref$size === void 0 ? 38 : _ref$size,
+    onClick = _ref.onClick;
+  var bg = color ? getColorHex(color) : "transparent";
+  var isWhite = color === "white";
+  return /*#__PURE__*/React.createElement("div", {
+    onClick: onClick,
+    style: {
+      width: size,
+      height: size,
+      borderRadius: "50%",
+      flexShrink: 0,
+      background: color ? "radial-gradient(circle at 35% 35%, ".concat(bg, "ff, ").concat(bg, "bb)") : "rgba(100,60,20,0.35)",
+      border: color ? isWhite ? "2px solid rgba(160,140,100,0.6)" : "none" : "2px dashed rgba(245,220,160,0.2)",
+      boxShadow: color ? "0 4px 14px rgba(0,0,0,0.5), inset 0 2px 4px rgba(255,255,255,0.35)" : "inset 0 2px 8px rgba(0,0,0,0.5)",
+      cursor: onClick ? "pointer" : "default",
+      transition: "transform 0.12s"
+    }
+  });
+}
+function FeedbackDots(_ref2) {
+  var blacks = _ref2.blacks,
+    whites = _ref2.whites;
+  var dots = [].concat(_toConsumableArray(Array(blacks).fill("black")), _toConsumableArray(Array(whites).fill("white")), _toConsumableArray(Array(CODE_LENGTH - blacks - whites).fill("empty")));
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "grid",
+      gridTemplateColumns: "1fr 1fr",
+      gap: 4,
+      width: 40,
+      height: 40,
+      alignItems: "center",
+      justifyItems: "center",
+      padding: 2
+    }
+  }, dots.map(function (d, i) {
+    return /*#__PURE__*/React.createElement("div", {
+      key: i,
+      style: {
+        width: 14,
+        height: 14,
+        borderRadius: "50%",
+        background: d === "black" ? "radial-gradient(circle at 40% 35%, #4a4a6a, #0d0d1a)" : d === "white" ? "radial-gradient(circle at 40% 35%, #ffffff, #c0c0d0)" : "transparent",
+        boxShadow: d === "black" ? "0 1px 4px rgba(0,0,0,0.8), inset 0 1px 2px rgba(255,255,255,0.15)" : d === "white" ? "0 1px 5px rgba(255,255,255,0.5), inset 0 1px 2px rgba(255,255,255,0.8)" : "none",
+        border: d === "empty" ? "1.5px solid rgba(255,255,255,0.15)" : "none"
+      }
+    });
+  }));
+}
+function ColorPicker(_ref3) {
+  var selected = _ref3.selected,
+    onSelect = _ref3.onSelect;
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 10,
+      justifyContent: "center",
+      flexWrap: "wrap"
+    }
+  }, COLORS.map(function (c) {
+    return /*#__PURE__*/React.createElement("div", {
+      key: c.id,
+      onClick: function onClick() {
+        return onSelect(c.id);
+      },
+      title: c.label,
+      style: {
+        width: 46,
+        height: 46,
+        borderRadius: "50%",
+        background: "radial-gradient(circle at 35% 35%, ".concat(c.hex, "ff, ").concat(c.hex, "bb)"),
+        border: c.id === "white" ? "2px solid rgba(160,140,100,0.5)" : "none",
+        boxShadow: selected === c.id ? "0 0 0 3px #3a1f08, 0 0 0 5px ".concat(c.hex === "#f0ece0" ? "#b0a080" : c.hex, ", 0 6px 20px rgba(0,0,0,0.4)") : "0 3px 10px rgba(0,0,0,0.5)",
+        cursor: "pointer",
+        transition: "transform 0.13s, box-shadow 0.13s",
+        transform: selected === c.id ? "scale(1.22)" : "scale(1)"
+      }
+    });
+  }));
+}
+function SecretReveal(_ref4) {
+  var code = _ref4.code,
+    show = _ref4.show;
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 8,
+      justifyContent: "center"
+    }
+  }, code.map(function (c, i) {
+    return show ? /*#__PURE__*/React.createElement(Peg, {
+      key: i,
+      color: c,
+      size: 38
+    }) : /*#__PURE__*/React.createElement("div", {
+      key: i,
+      style: {
+        width: 38,
+        height: 38,
+        borderRadius: "50%",
+        background: "radial-gradient(circle at 40% 35%, #3a2010, #1a0c04)",
+        boxShadow: "inset 0 3px 10px rgba(0,0,0,0.9), 0 2px 6px rgba(0,0,0,0.5)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontSize: 17,
+        color: "rgba(245,220,160,0.2)",
+        fontFamily: "'Baloo 2', cursive",
+        fontWeight: 800,
+        border: "2px solid rgba(245,220,160,0.1)"
+      }
+    }, "?");
+  }));
+}
+function App() {
+  var _useState = useState(function () {
+      return generateCode();
+    }),
+    _useState2 = _slicedToArray(_useState, 2),
+    secret = _useState2[0],
+    setSecret = _useState2[1];
+  var _useState3 = useState([]),
+    _useState4 = _slicedToArray(_useState3, 2),
+    history = _useState4[0],
+    setHistory = _useState4[1];
+  var _useState5 = useState(Array(CODE_LENGTH).fill(null)),
+    _useState6 = _slicedToArray(_useState5, 2),
+    current = _useState6[0],
+    setCurrent = _useState6[1];
+  var _useState7 = useState(COLORS[0].id),
+    _useState8 = _slicedToArray(_useState7, 2),
+    selectedColor = _useState8[0],
+    setSelected = _useState8[1];
+  var _useState9 = useState(false),
+    _useState0 = _slicedToArray(_useState9, 2),
+    gameOver = _useState0[0],
+    setGameOver = _useState0[1];
+  var _useState1 = useState(false),
+    _useState10 = _slicedToArray(_useState1, 2),
+    revealSecret = _useState10[0],
+    setReveal = _useState10[1];
+  var _useState11 = useState(false),
+    _useState12 = _slicedToArray(_useState11, 2),
+    shake = _useState12[0],
+    setShake = _useState12[1];
+  var won = gameOver === "win";
+  function handlePegClick(i) {
+    if (gameOver) return;
+    setCurrent(function (prev) {
+      var next = _toConsumableArray(prev);
+      next[i] = next[i] === selectedColor ? null : selectedColor;
+      return next;
+    });
+  }
+  function handleSubmit() {
+    if (gameOver) return;
+    if (current.some(function (c) {
+      return c === null;
+    })) {
+      setShake(true);
+      setTimeout(function () {
+        return setShake(false);
+      }, 500);
+      return;
+    }
+    var feedback = scoreFeedback(secret, current);
+    var newHistory = [].concat(_toConsumableArray(history), [{
+      guess: current,
+      feedback: feedback
+    }]);
+    setHistory(newHistory);
+    setCurrent(Array(CODE_LENGTH).fill(null));
+    if (feedback.blacks === CODE_LENGTH) {
+      setGameOver("win");
+      setReveal(true);
+    } else if (newHistory.length >= MAX_GUESSES) {
+      setGameOver("lose");
+      setReveal(true);
+    }
+  }
+  function handleReset() {
+    setSecret(generateCode());
+    setHistory([]);
+    setCurrent(Array(CODE_LENGTH).fill(null));
+    setSelected(COLORS[0].id);
+    setGameOver(false);
+    setReveal(false);
+    setShake(false);
+  }
+  var woodBg = "\n    repeating-linear-gradient(92deg, transparent 0px, transparent 2px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 3px),\n    repeating-linear-gradient(88deg, transparent 0px, transparent 8px, rgba(255,255,255,0.04) 8px, rgba(255,255,255,0.04) 9px),\n    repeating-linear-gradient(91deg, transparent 0px, transparent 18px, rgba(0,0,0,0.04) 18px, rgba(0,0,0,0.04) 22px),\n    linear-gradient(170deg, #8B5E3C 0%, #6B3F20 30%, #7A4E2D 55%, #5C3317 80%, #6B3F20 100%)\n  ";
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      minHeight: "100vh",
+      background: woodBg,
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      padding: "18px 12px 32px",
+      fontFamily: "'Baloo 2', cursive"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      textAlign: "center",
+      marginBottom: 14
+    }
+  }, /*#__PURE__*/React.createElement("h1", {
+    style: {
+      margin: 0,
+      fontSize: 36,
+      fontWeight: 700,
+      fontFamily: "'Playfair Display', serif",
+      color: "#F5E6C8",
+      textShadow: "0 2px 8px rgba(0,0,0,0.5), 0 1px 0 rgba(255,255,255,0.15)",
+      letterSpacing: 2
+    }
+  }, "MASTERMIND"), /*#__PURE__*/React.createElement("p", {
+    style: {
+      color: "rgba(245,230,200,0.55)",
+      margin: "3px 0 0",
+      fontSize: 11,
+      letterSpacing: 3
+    }
+  }, "CRACK THE CODE \xB7 ", MAX_GUESSES, " GUESSES \xB7 6 COLORS")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: "rgba(40,20,8,0.55)",
+      borderRadius: 14,
+      padding: "10px 22px",
+      marginBottom: 10,
+      textAlign: "center",
+      border: "2px solid rgba(245,220,160,0.18)",
+      boxShadow: "0 4px 18px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.07)"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      color: "rgba(245,220,160,0.5)",
+      letterSpacing: 3,
+      marginBottom: 8,
+      fontWeight: 600
+    }
+  }, "SECRET CODE"), /*#__PURE__*/React.createElement(SecretReveal, {
+    code: secret,
+    show: revealSecret
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 16,
+      marginBottom: 10,
+      fontSize: 11,
+      color: "rgba(245,220,160,0.6)",
+      alignItems: "center"
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: 5
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      display: "inline-block",
+      width: 11,
+      height: 11,
+      borderRadius: "50%",
+      background: "radial-gradient(circle at 40% 35%, #3a3a3a, #0a0a0a)",
+      boxShadow: "0 1px 4px rgba(0,0,0,0.9), inset 0 1px 1px rgba(255,255,255,0.1)"
+    }
+  }), "Right color + spot"), /*#__PURE__*/React.createElement("span", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: 5
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      display: "inline-block",
+      width: 11,
+      height: 11,
+      borderRadius: "50%",
+      background: "radial-gradient(circle at 40% 35%, #ffffff, #d0ccc0)",
+      boxShadow: "0 1px 4px rgba(255,255,255,0.35)",
+      border: "1px solid rgba(180,170,150,0.5)"
+    }
+  }), "Right color, wrong spot")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: "rgba(40,20,8,0.45)",
+      borderRadius: 18,
+      padding: "10px 8px",
+      border: "2px solid rgba(245,220,160,0.15)",
+      boxShadow: "0 6px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06)",
+      width: "100%",
+      maxWidth: 380,
+      marginBottom: 12
+    }
+  }, history.map(function (entry, i) {
+    return /*#__PURE__*/React.createElement("div", {
+      key: i,
+      className: "slide",
+      style: {
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        padding: "5px 12px",
+        borderRadius: 10,
+        borderBottom: i < history.length - 1 ? "1px solid rgba(245,220,160,0.07)" : "none"
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        width: 20,
+        textAlign: "right",
+        fontSize: 11,
+        color: "rgba(245,220,160,0.35)",
+        flexShrink: 0,
+        fontWeight: 600
+      }
+    }, i + 1), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: "flex",
+        gap: 7,
+        flex: 1,
+        justifyContent: "center"
+      }
+    }, entry.guess.map(function (c, j) {
+      return /*#__PURE__*/React.createElement(Peg, {
+        key: j,
+        color: c,
+        size: 36
+      });
+    })), /*#__PURE__*/React.createElement("div", {
+      style: {
+        flexShrink: 0
+      }
+    }, /*#__PURE__*/React.createElement(FeedbackDots, {
+      blacks: entry.feedback.blacks,
+      whites: entry.feedback.whites
+    })));
+  }), !gameOver && /*#__PURE__*/React.createElement("div", {
+    className: shake ? "shake" : "",
+    style: {
+      background: "rgba(245,220,160,0.07)",
+      border: "1.5px solid rgba(245,220,160,0.22)",
+      borderRadius: 12,
+      padding: "10px 12px",
+      marginTop: history.length > 0 ? 6 : 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 10,
+      color: "rgba(245,220,160,0.45)",
+      letterSpacing: 3,
+      textAlign: "center",
+      marginBottom: 9,
+      fontWeight: 600
+    }
+  }, "GUESS ", history.length + 1, " OF ", MAX_GUESSES), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 8,
+      justifyContent: "center",
+      marginBottom: 12
+    }
+  }, Array.from({
+    length: CODE_LENGTH
+  }).map(function (_, i) {
+    var _current$i;
+    return /*#__PURE__*/React.createElement(Peg, {
+      key: i,
+      color: (_current$i = current[i]) !== null && _current$i !== void 0 ? _current$i : null,
+      size: 44,
+      onClick: function onClick() {
+        return handlePegClick(i);
+      }
+    });
+  })), /*#__PURE__*/React.createElement(ColorPicker, {
+    selected: selectedColor,
+    onSelect: setSelected
+  }), /*#__PURE__*/React.createElement("button", {
+    onClick: handleSubmit,
+    style: {
+      width: "100%",
+      padding: "11px",
+      marginTop: 12,
+      borderRadius: 10,
+      border: "none",
+      background: current.every(Boolean) ? "linear-gradient(135deg, #8B2500, #C62828)" : "rgba(245,220,160,0.08)",
+      color: current.every(Boolean) ? "#F5E6C8" : "rgba(245,220,160,0.25)",
+      fontSize: 14,
+      fontWeight: 700,
+      fontFamily: "'Baloo 2', cursive",
+      cursor: current.every(Boolean) ? "pointer" : "not-allowed",
+      letterSpacing: 1.5,
+      boxShadow: current.every(Boolean) ? "0 4px 16px rgba(140,37,0,0.5)" : "none",
+      transition: "all 0.2s"
+    }
+  }, "CHECK GUESS \u2713")), !gameOver && history.length === 0 && /*#__PURE__*/React.createElement("p", {
+    style: {
+      fontSize: 11,
+      color: "rgba(245,220,160,0.3)",
+      textAlign: "center",
+      margin: "4px 0 6px"
+    }
+  }, "Pick a color \u2192 tap a slot \u2192 submit!")), gameOver && /*#__PURE__*/React.createElement("div", {
+    className: "pop",
+    style: {
+      background: won ? "linear-gradient(135deg, rgba(20,80,30,0.95), rgba(10,50,20,0.95))" : "linear-gradient(135deg, rgba(100,15,5,0.95), rgba(70,10,0,0.95))",
+      border: "2px solid ".concat(won ? "rgba(100,200,80,0.5)" : "rgba(200,40,20,0.5)"),
+      borderRadius: 18,
+      padding: "18px 24px",
+      textAlign: "center",
+      width: "100%",
+      maxWidth: 380,
+      marginBottom: 12,
+      boxShadow: "0 8px 32px rgba(0,0,0,0.5)"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 34,
+      marginBottom: 4
+    }
+  }, won ? "🎉" : "💀"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 22,
+      fontWeight: 700,
+      fontFamily: "'Playfair Display', serif",
+      color: "#F5E6C8",
+      marginBottom: 4
+    }
+  }, won ? "YOU CRACKED IT!" : "GAME OVER"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 13,
+      color: "rgba(245,230,200,0.75)",
+      marginBottom: 14
+    }
+  }, won ? "Solved in ".concat(history.length, " guess").concat(history.length === 1 ? "" : "es", "! \uD83E\uDDE0") : "The code is revealed above."), /*#__PURE__*/React.createElement("button", {
+    onClick: handleReset,
+    style: {
+      padding: "11px 28px",
+      borderRadius: 10,
+      border: "none",
+      background: "#F5E6C8",
+      color: won ? "#1a4d10" : "#8B1500",
+      fontSize: 14,
+      fontWeight: 800,
+      fontFamily: "'Baloo 2', cursive",
+      cursor: "pointer",
+      letterSpacing: 0.5,
+      boxShadow: "0 2px 10px rgba(0,0,0,0.3)"
+    }
+  }, "PLAY AGAIN \u2192")), !gameOver && /*#__PURE__*/React.createElement("button", {
+    onClick: handleReset,
+    style: {
+      padding: "8px 20px",
+      borderRadius: 10,
+      border: "1.5px solid rgba(245,220,160,0.25)",
+      background: "rgba(40,20,8,0.35)",
+      color: "rgba(245,220,160,0.45)",
+      fontSize: 12,
+      fontFamily: "'Baloo 2', cursive",
+      cursor: "pointer",
+      letterSpacing: 0.5
+    }
+  }, "\u21BA New Game"));
+}
+var root = ReactDOM.createRoot(document.getElementById("root"));
+root.render(/*#__PURE__*/React.createElement(App, null));
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJuYW1lcyI6WyJfUmVhY3QiLCJSZWFjdCIsInVzZVN0YXRlIiwiQ09MT1JTIiwiaWQiLCJoZXgiLCJsYWJlbCIsIkNPREVfTEVOR1RIIiwiTUFYX0dVRVNTRVMiLCJnZW5lcmF0ZUNvZGUiLCJBcnJheSIsImZyb20iLCJsZW5ndGgiLCJNYXRoIiwiZmxvb3IiLCJyYW5kb20iLCJnZXRDb2xvckhleCIsIl9DT0xPUlMkZmluZCRoZXgiLCJfQ09MT1JTJGZpbmQiLCJmaW5kIiwiYyIsInNjb3JlRmVlZGJhY2siLCJzZWNyZXQiLCJndWVzcyIsImJsYWNrcyIsIndoaXRlcyIsInNMZWZ0IiwiZ0xlZnQiLCJpIiwicHVzaCIsIl9pIiwiX2dMZWZ0IiwiZyIsImlkeCIsImluZGV4T2YiLCJzcGxpY2UiLCJQZWciLCJfcmVmIiwiY29sb3IiLCJfcmVmJHNpemUiLCJzaXplIiwib25DbGljayIsImJnIiwiaXNXaGl0ZSIsImNyZWF0ZUVsZW1lbnQiLCJzdHlsZSIsIndpZHRoIiwiaGVpZ2h0IiwiYm9yZGVyUmFkaXVzIiwiZmxleFNocmluayIsImJhY2tncm91bmQiLCJjb25jYXQiLCJib3JkZXIiLCJib3hTaGFkb3ciLCJjdXJzb3IiLCJ0cmFuc2l0aW9uIiwiRmVlZGJhY2tEb3RzIiwiX3JlZjIiLCJkb3RzIiwiX3RvQ29uc3VtYWJsZUFycmF5IiwiZmlsbCIsImRpc3BsYXkiLCJncmlkVGVtcGxhdGVDb2x1bW5zIiwiZ2FwIiwiYWxpZ25JdGVtcyIsImp1c3RpZnlJdGVtcyIsInBhZGRpbmciLCJtYXAiLCJkIiwia2V5IiwiQ29sb3JQaWNrZXIiLCJfcmVmMyIsInNlbGVjdGVkIiwib25TZWxlY3QiLCJqdXN0aWZ5Q29udGVudCIsImZsZXhXcmFwIiwidGl0bGUiLCJ0cmFuc2Zvcm0iLCJTZWNyZXRSZXZlYWwiLCJfcmVmNCIsImNvZGUiLCJzaG93IiwiZm9udFNpemUiLCJmb250RmFtaWx5IiwiZm9udFdlaWdodCIsIkFwcCIsIl91c2VTdGF0ZSIsIl91c2VTdGF0ZTIiLCJfc2xpY2VkVG9BcnJheSIsInNldFNlY3JldCIsIl91c2VTdGF0ZTMiLCJfdXNlU3RhdGU0IiwiaGlzdG9yeSIsInNldEhpc3RvcnkiLCJfdXNlU3RhdGU1IiwiX3VzZVN0YXRlNiIsImN1cnJlbnQiLCJzZXRDdXJyZW50IiwiX3VzZVN0YXRlNyIsIl91c2VTdGF0ZTgiLCJzZWxlY3RlZENvbG9yIiwic2V0U2VsZWN0ZWQiLCJfdXNlU3RhdGU5IiwiX3VzZVN0YXRlMCIsImdhbWVPdmVyIiwic2V0R2FtZU92ZXIiLCJfdXNlU3RhdGUxIiwiX3VzZVN0YXRlMTAiLCJyZXZlYWxTZWNyZXQiLCJzZXRSZXZlYWwiLCJfdXNlU3RhdGUxMSIsIl91c2VTdGF0ZTEyIiwic2hha2UiLCJzZXRTaGFrZSIsIndvbiIsImhhbmRsZVBlZ0NsaWNrIiwicHJldiIsIm5leHQiLCJoYW5kbGVTdWJtaXQiLCJzb21lIiwic2V0VGltZW91dCIsImZlZWRiYWNrIiwibmV3SGlzdG9yeSIsImhhbmRsZVJlc2V0Iiwid29vZEJnIiwibWluSGVpZ2h0IiwiZmxleERpcmVjdGlvbiIsInRleHRBbGlnbiIsIm1hcmdpbkJvdHRvbSIsIm1hcmdpbiIsInRleHRTaGFkb3ciLCJsZXR0ZXJTcGFjaW5nIiwibWF4V2lkdGgiLCJlbnRyeSIsImNsYXNzTmFtZSIsImJvcmRlckJvdHRvbSIsImZsZXgiLCJqIiwibWFyZ2luVG9wIiwiXyIsIl9jdXJyZW50JGkiLCJldmVyeSIsIkJvb2xlYW4iLCJyb290IiwiUmVhY3RET00iLCJjcmVhdGVSb290IiwiZG9jdW1lbnQiLCJnZXRFbGVtZW50QnlJZCIsInJlbmRlciJdLCJzb3VyY2VzIjpbIklubGluZSBCYWJlbCBzY3JpcHQiXSwic291cmNlc0NvbnRlbnQiOlsiXG5jb25zdCB7IHVzZVN0YXRlIH0gPSBSZWFjdDtcblxuY29uc3QgQ09MT1JTID0gW1xuICB7IGlkOiBcImJsYWNrXCIsICBoZXg6IFwiIzFhMWExYVwiLCBsYWJlbDogXCJCbGFja1wiICB9LFxuICB7IGlkOiBcIndoaXRlXCIsICBoZXg6IFwiI2YwZWNlMFwiLCBsYWJlbDogXCJXaGl0ZVwiICB9LFxuICB7IGlkOiBcInllbGxvd1wiLCBoZXg6IFwiI0Y1QzgwMFwiLCBsYWJlbDogXCJZZWxsb3dcIiB9LFxuICB7IGlkOiBcImJsdWVcIiwgICBoZXg6IFwiIzE1NjVDMFwiLCBsYWJlbDogXCJCbHVlXCIgICB9LFxuICB7IGlkOiBcImdyZWVuXCIsICBoZXg6IFwiIzJFN0QzMlwiLCBsYWJlbDogXCJHcmVlblwiICB9LFxuICB7IGlkOiBcInJlZFwiLCAgICBoZXg6IFwiI0M2MjgyOFwiLCBsYWJlbDogXCJSZWRcIiAgICB9LFxuXTtcblxuY29uc3QgQ09ERV9MRU5HVEggPSA0O1xuY29uc3QgTUFYX0dVRVNTRVMgPSAxMDtcblxuZnVuY3Rpb24gZ2VuZXJhdGVDb2RlKCkge1xuICByZXR1cm4gQXJyYXkuZnJvbSh7IGxlbmd0aDogQ09ERV9MRU5HVEggfSwgKCkgPT5cbiAgICBDT0xPUlNbTWF0aC5mbG9vcihNYXRoLnJhbmRvbSgpICogQ09MT1JTLmxlbmd0aCldLmlkXG4gICk7XG59XG5cbmZ1bmN0aW9uIGdldENvbG9ySGV4KGlkKSB7XG4gIHJldHVybiBDT0xPUlMuZmluZChjID0+IGMuaWQgPT09IGlkKT8uaGV4ID8/IFwiIzJhMmEzYVwiO1xufVxuXG5mdW5jdGlvbiBzY29yZUZlZWRiYWNrKHNlY3JldCwgZ3Vlc3MpIHtcbiAgbGV0IGJsYWNrcyA9IDAsIHdoaXRlcyA9IDA7XG4gIGNvbnN0IHNMZWZ0ID0gW10sIGdMZWZ0ID0gW107XG4gIGZvciAobGV0IGkgPSAwOyBpIDwgQ09ERV9MRU5HVEg7IGkrKykge1xuICAgIGlmIChndWVzc1tpXSA9PT0gc2VjcmV0W2ldKSBibGFja3MrKztcbiAgICBlbHNlIHsgc0xlZnQucHVzaChzZWNyZXRbaV0pOyBnTGVmdC5wdXNoKGd1ZXNzW2ldKTsgfVxuICB9XG4gIGZvciAoY29uc3QgZyBvZiBnTGVmdCkge1xuICAgIGNvbnN0IGlkeCA9IHNMZWZ0LmluZGV4T2YoZyk7XG4gICAgaWYgKGlkeCAhPT0gLTEpIHsgd2hpdGVzKys7IHNMZWZ0LnNwbGljZShpZHgsIDEpOyB9XG4gIH1cbiAgcmV0dXJuIHsgYmxhY2tzLCB3aGl0ZXMgfTtcbn1cblxuZnVuY3Rpb24gUGVnKHsgY29sb3IsIHNpemUgPSAzOCwgb25DbGljayB9KSB7XG4gIGNvbnN0IGJnID0gY29sb3IgPyBnZXRDb2xvckhleChjb2xvcikgOiBcInRyYW5zcGFyZW50XCI7XG4gIGNvbnN0IGlzV2hpdGUgPSBjb2xvciA9PT0gXCJ3aGl0ZVwiO1xuICByZXR1cm4gKFxuICAgIDxkaXYgb25DbGljaz17b25DbGlja30gc3R5bGU9e3tcbiAgICAgIHdpZHRoOiBzaXplLCBoZWlnaHQ6IHNpemUsIGJvcmRlclJhZGl1czogXCI1MCVcIiwgZmxleFNocmluazogMCxcbiAgICAgIGJhY2tncm91bmQ6IGNvbG9yXG4gICAgICAgID8gYHJhZGlhbC1ncmFkaWVudChjaXJjbGUgYXQgMzUlIDM1JSwgJHtiZ31mZiwgJHtiZ31iYilgXG4gICAgICAgIDogXCJyZ2JhKDEwMCw2MCwyMCwwLjM1KVwiLFxuICAgICAgYm9yZGVyOiBjb2xvclxuICAgICAgICA/IChpc1doaXRlID8gXCIycHggc29saWQgcmdiYSgxNjAsMTQwLDEwMCwwLjYpXCIgOiBcIm5vbmVcIilcbiAgICAgICAgOiBcIjJweCBkYXNoZWQgcmdiYSgyNDUsMjIwLDE2MCwwLjIpXCIsXG4gICAgICBib3hTaGFkb3c6IGNvbG9yXG4gICAgICAgID8gXCIwIDRweCAxNHB4IHJnYmEoMCwwLDAsMC41KSwgaW5zZXQgMCAycHggNHB4IHJnYmEoMjU1LDI1NSwyNTUsMC4zNSlcIlxuICAgICAgICA6IFwiaW5zZXQgMCAycHggOHB4IHJnYmEoMCwwLDAsMC41KVwiLFxuICAgICAgY3Vyc29yOiBvbkNsaWNrID8gXCJwb2ludGVyXCIgOiBcImRlZmF1bHRcIixcbiAgICAgIHRyYW5zaXRpb246IFwidHJhbnNmb3JtIDAuMTJzXCIsXG4gICAgfX0gLz5cbiAgKTtcbn1cblxuZnVuY3Rpb24gRmVlZGJhY2tEb3RzKHsgYmxhY2tzLCB3aGl0ZXMgfSkge1xuICBjb25zdCBkb3RzID0gW1xuICAgIC4uLkFycmF5KGJsYWNrcykuZmlsbChcImJsYWNrXCIpLFxuICAgIC4uLkFycmF5KHdoaXRlcykuZmlsbChcIndoaXRlXCIpLFxuICAgIC4uLkFycmF5KENPREVfTEVOR1RIIC0gYmxhY2tzIC0gd2hpdGVzKS5maWxsKFwiZW1wdHlcIiksXG4gIF07XG4gIHJldHVybiAoXG4gICAgPGRpdiBzdHlsZT17e1xuICAgICAgZGlzcGxheTogXCJncmlkXCIsIGdyaWRUZW1wbGF0ZUNvbHVtbnM6IFwiMWZyIDFmclwiLFxuICAgICAgZ2FwOiA0LCB3aWR0aDogNDAsIGhlaWdodDogNDAsXG4gICAgICBhbGlnbkl0ZW1zOiBcImNlbnRlclwiLCBqdXN0aWZ5SXRlbXM6IFwiY2VudGVyXCIsIHBhZGRpbmc6IDIsXG4gICAgfX0+XG4gICAgICB7ZG90cy5tYXAoKGQsIGkpID0+IChcbiAgICAgICAgPGRpdiBrZXk9e2l9IHN0eWxlPXt7XG4gICAgICAgICAgd2lkdGg6IDE0LCBoZWlnaHQ6IDE0LCBib3JkZXJSYWRpdXM6IFwiNTAlXCIsXG4gICAgICAgICAgYmFja2dyb3VuZDogZCA9PT0gXCJibGFja1wiXG4gICAgICAgICAgICA/IFwicmFkaWFsLWdyYWRpZW50KGNpcmNsZSBhdCA0MCUgMzUlLCAjNGE0YTZhLCAjMGQwZDFhKVwiXG4gICAgICAgICAgICA6IGQgPT09IFwid2hpdGVcIlxuICAgICAgICAgICAgPyBcInJhZGlhbC1ncmFkaWVudChjaXJjbGUgYXQgNDAlIDM1JSwgI2ZmZmZmZiwgI2MwYzBkMClcIlxuICAgICAgICAgICAgOiBcInRyYW5zcGFyZW50XCIsXG4gICAgICAgICAgYm94U2hhZG93OiBkID09PSBcImJsYWNrXCJcbiAgICAgICAgICAgID8gXCIwIDFweCA0cHggcmdiYSgwLDAsMCwwLjgpLCBpbnNldCAwIDFweCAycHggcmdiYSgyNTUsMjU1LDI1NSwwLjE1KVwiXG4gICAgICAgICAgICA6IGQgPT09IFwid2hpdGVcIlxuICAgICAgICAgICAgPyBcIjAgMXB4IDVweCByZ2JhKDI1NSwyNTUsMjU1LDAuNSksIGluc2V0IDAgMXB4IDJweCByZ2JhKDI1NSwyNTUsMjU1LDAuOClcIlxuICAgICAgICAgICAgOiBcIm5vbmVcIixcbiAgICAgICAgICBib3JkZXI6IGQgPT09IFwiZW1wdHlcIiA/IFwiMS41cHggc29saWQgcmdiYSgyNTUsMjU1LDI1NSwwLjE1KVwiIDogXCJub25lXCIsXG4gICAgICAgIH19IC8+XG4gICAgICApKX1cbiAgICA8L2Rpdj5cbiAgKTtcbn1cblxuZnVuY3Rpb24gQ29sb3JQaWNrZXIoeyBzZWxlY3RlZCwgb25TZWxlY3QgfSkge1xuICByZXR1cm4gKFxuICAgIDxkaXYgc3R5bGU9e3sgZGlzcGxheTogXCJmbGV4XCIsIGdhcDogMTAsIGp1c3RpZnlDb250ZW50OiBcImNlbnRlclwiLCBmbGV4V3JhcDogXCJ3cmFwXCIgfX0+XG4gICAgICB7Q09MT1JTLm1hcChjID0+IChcbiAgICAgICAgPGRpdiBrZXk9e2MuaWR9IG9uQ2xpY2s9eygpID0+IG9uU2VsZWN0KGMuaWQpfSB0aXRsZT17Yy5sYWJlbH0gc3R5bGU9e3tcbiAgICAgICAgICB3aWR0aDogNDYsIGhlaWdodDogNDYsIGJvcmRlclJhZGl1czogXCI1MCVcIixcbiAgICAgICAgICBiYWNrZ3JvdW5kOiBgcmFkaWFsLWdyYWRpZW50KGNpcmNsZSBhdCAzNSUgMzUlLCAke2MuaGV4fWZmLCAke2MuaGV4fWJiKWAsXG4gICAgICAgICAgYm9yZGVyOiBjLmlkID09PSBcIndoaXRlXCIgPyBcIjJweCBzb2xpZCByZ2JhKDE2MCwxNDAsMTAwLDAuNSlcIiA6IFwibm9uZVwiLFxuICAgICAgICAgIGJveFNoYWRvdzogc2VsZWN0ZWQgPT09IGMuaWRcbiAgICAgICAgICAgID8gYDAgMCAwIDNweCAjM2ExZjA4LCAwIDAgMCA1cHggJHtjLmhleCA9PT0gXCIjZjBlY2UwXCIgPyBcIiNiMGEwODBcIiA6IGMuaGV4fSwgMCA2cHggMjBweCByZ2JhKDAsMCwwLDAuNClgXG4gICAgICAgICAgICA6IFwiMCAzcHggMTBweCByZ2JhKDAsMCwwLDAuNSlcIixcbiAgICAgICAgICBjdXJzb3I6IFwicG9pbnRlclwiLFxuICAgICAgICAgIHRyYW5zaXRpb246IFwidHJhbnNmb3JtIDAuMTNzLCBib3gtc2hhZG93IDAuMTNzXCIsXG4gICAgICAgICAgdHJhbnNmb3JtOiBzZWxlY3RlZCA9PT0gYy5pZCA/IFwic2NhbGUoMS4yMilcIiA6IFwic2NhbGUoMSlcIixcbiAgICAgICAgfX0gLz5cbiAgICAgICkpfVxuICAgIDwvZGl2PlxuICApO1xufVxuXG5mdW5jdGlvbiBTZWNyZXRSZXZlYWwoeyBjb2RlLCBzaG93IH0pIHtcbiAgcmV0dXJuIChcbiAgICA8ZGl2IHN0eWxlPXt7IGRpc3BsYXk6IFwiZmxleFwiLCBnYXA6IDgsIGp1c3RpZnlDb250ZW50OiBcImNlbnRlclwiIH19PlxuICAgICAge2NvZGUubWFwKChjLCBpKSA9PlxuICAgICAgICBzaG93ID8gKFxuICAgICAgICAgIDxQZWcga2V5PXtpfSBjb2xvcj17Y30gc2l6ZT17Mzh9IC8+XG4gICAgICAgICkgOiAoXG4gICAgICAgICAgPGRpdiBrZXk9e2l9IHN0eWxlPXt7XG4gICAgICAgICAgICB3aWR0aDogMzgsIGhlaWdodDogMzgsIGJvcmRlclJhZGl1czogXCI1MCVcIixcbiAgICAgICAgICAgIGJhY2tncm91bmQ6IFwicmFkaWFsLWdyYWRpZW50KGNpcmNsZSBhdCA0MCUgMzUlLCAjM2EyMDEwLCAjMWEwYzA0KVwiLFxuICAgICAgICAgICAgYm94U2hhZG93OiBcImluc2V0IDAgM3B4IDEwcHggcmdiYSgwLDAsMCwwLjkpLCAwIDJweCA2cHggcmdiYSgwLDAsMCwwLjUpXCIsXG4gICAgICAgICAgICBkaXNwbGF5OiBcImZsZXhcIiwgYWxpZ25JdGVtczogXCJjZW50ZXJcIiwganVzdGlmeUNvbnRlbnQ6IFwiY2VudGVyXCIsXG4gICAgICAgICAgICBmb250U2l6ZTogMTcsIGNvbG9yOiBcInJnYmEoMjQ1LDIyMCwxNjAsMC4yKVwiLFxuICAgICAgICAgICAgZm9udEZhbWlseTogXCInQmFsb28gMicsIGN1cnNpdmVcIiwgZm9udFdlaWdodDogODAwLFxuICAgICAgICAgICAgYm9yZGVyOiBcIjJweCBzb2xpZCByZ2JhKDI0NSwyMjAsMTYwLDAuMSlcIixcbiAgICAgICAgICB9fT4/PC9kaXY+XG4gICAgICAgIClcbiAgICAgICl9XG4gICAgPC9kaXY+XG4gICk7XG59XG5cbmZ1bmN0aW9uIEFwcCgpIHtcbiAgY29uc3QgW3NlY3JldCwgc2V0U2VjcmV0XSAgICAgICAgICAgPSB1c2VTdGF0ZSgoKSA9PiBnZW5lcmF0ZUNvZGUoKSk7XG4gIGNvbnN0IFtoaXN0b3J5LCBzZXRIaXN0b3J5XSAgICAgICAgID0gdXNlU3RhdGUoW10pO1xuICBjb25zdCBbY3VycmVudCwgc2V0Q3VycmVudF0gICAgICAgICA9IHVzZVN0YXRlKEFycmF5KENPREVfTEVOR1RIKS5maWxsKG51bGwpKTtcbiAgY29uc3QgW3NlbGVjdGVkQ29sb3IsIHNldFNlbGVjdGVkXSAgPSB1c2VTdGF0ZShDT0xPUlNbMF0uaWQpO1xuICBjb25zdCBbZ2FtZU92ZXIsIHNldEdhbWVPdmVyXSAgICAgICA9IHVzZVN0YXRlKGZhbHNlKTtcbiAgY29uc3QgW3JldmVhbFNlY3JldCwgc2V0UmV2ZWFsXSAgICAgPSB1c2VTdGF0ZShmYWxzZSk7XG4gIGNvbnN0IFtzaGFrZSwgc2V0U2hha2VdICAgICAgICAgICAgID0gdXNlU3RhdGUoZmFsc2UpO1xuXG4gIGNvbnN0IHdvbiAgPSBnYW1lT3ZlciA9PT0gXCJ3aW5cIjtcblxuICBmdW5jdGlvbiBoYW5kbGVQZWdDbGljayhpKSB7XG4gICAgaWYgKGdhbWVPdmVyKSByZXR1cm47XG4gICAgc2V0Q3VycmVudChwcmV2ID0+IHtcbiAgICAgIGNvbnN0IG5leHQgPSBbLi4ucHJldl07XG4gICAgICBuZXh0W2ldID0gbmV4dFtpXSA9PT0gc2VsZWN0ZWRDb2xvciA/IG51bGwgOiBzZWxlY3RlZENvbG9yO1xuICAgICAgcmV0dXJuIG5leHQ7XG4gICAgfSk7XG4gIH1cblxuICBmdW5jdGlvbiBoYW5kbGVTdWJtaXQoKSB7XG4gICAgaWYgKGdhbWVPdmVyKSByZXR1cm47XG4gICAgaWYgKGN1cnJlbnQuc29tZShjID0+IGMgPT09IG51bGwpKSB7XG4gICAgICBzZXRTaGFrZSh0cnVlKTtcbiAgICAgIHNldFRpbWVvdXQoKCkgPT4gc2V0U2hha2UoZmFsc2UpLCA1MDApO1xuICAgICAgcmV0dXJuO1xuICAgIH1cbiAgICBjb25zdCBmZWVkYmFjayA9IHNjb3JlRmVlZGJhY2soc2VjcmV0LCBjdXJyZW50KTtcbiAgICBjb25zdCBuZXdIaXN0b3J5ID0gWy4uLmhpc3RvcnksIHsgZ3Vlc3M6IGN1cnJlbnQsIGZlZWRiYWNrIH1dO1xuICAgIHNldEhpc3RvcnkobmV3SGlzdG9yeSk7XG4gICAgc2V0Q3VycmVudChBcnJheShDT0RFX0xFTkdUSCkuZmlsbChudWxsKSk7XG4gICAgaWYgKGZlZWRiYWNrLmJsYWNrcyA9PT0gQ09ERV9MRU5HVEgpIHtcbiAgICAgIHNldEdhbWVPdmVyKFwid2luXCIpOyBzZXRSZXZlYWwodHJ1ZSk7XG4gICAgfSBlbHNlIGlmIChuZXdIaXN0b3J5Lmxlbmd0aCA+PSBNQVhfR1VFU1NFUykge1xuICAgICAgc2V0R2FtZU92ZXIoXCJsb3NlXCIpOyBzZXRSZXZlYWwodHJ1ZSk7XG4gICAgfVxuICB9XG5cbiAgZnVuY3Rpb24gaGFuZGxlUmVzZXQoKSB7XG4gICAgc2V0U2VjcmV0KGdlbmVyYXRlQ29kZSgpKTtcbiAgICBzZXRIaXN0b3J5KFtdKTtcbiAgICBzZXRDdXJyZW50KEFycmF5KENPREVfTEVOR1RIKS5maWxsKG51bGwpKTtcbiAgICBzZXRTZWxlY3RlZChDT0xPUlNbMF0uaWQpO1xuICAgIHNldEdhbWVPdmVyKGZhbHNlKTtcbiAgICBzZXRSZXZlYWwoZmFsc2UpO1xuICAgIHNldFNoYWtlKGZhbHNlKTtcbiAgfVxuXG4gIGNvbnN0IHdvb2RCZyA9IGBcbiAgICByZXBlYXRpbmctbGluZWFyLWdyYWRpZW50KDkyZGVnLCB0cmFuc3BhcmVudCAwcHgsIHRyYW5zcGFyZW50IDJweCwgcmdiYSgwLDAsMCwwLjAzKSAycHgsIHJnYmEoMCwwLDAsMC4wMykgM3B4KSxcbiAgICByZXBlYXRpbmctbGluZWFyLWdyYWRpZW50KDg4ZGVnLCB0cmFuc3BhcmVudCAwcHgsIHRyYW5zcGFyZW50IDhweCwgcmdiYSgyNTUsMjU1LDI1NSwwLjA0KSA4cHgsIHJnYmEoMjU1LDI1NSwyNTUsMC4wNCkgOXB4KSxcbiAgICByZXBlYXRpbmctbGluZWFyLWdyYWRpZW50KDkxZGVnLCB0cmFuc3BhcmVudCAwcHgsIHRyYW5zcGFyZW50IDE4cHgsIHJnYmEoMCwwLDAsMC4wNCkgMThweCwgcmdiYSgwLDAsMCwwLjA0KSAyMnB4KSxcbiAgICBsaW5lYXItZ3JhZGllbnQoMTcwZGVnLCAjOEI1RTNDIDAlLCAjNkIzRjIwIDMwJSwgIzdBNEUyRCA1NSUsICM1QzMzMTcgODAlLCAjNkIzRjIwIDEwMCUpXG4gIGA7XG5cbiAgcmV0dXJuIChcbiAgICA8ZGl2IHN0eWxlPXt7XG4gICAgICBtaW5IZWlnaHQ6IFwiMTAwdmhcIixcbiAgICAgIGJhY2tncm91bmQ6IHdvb2RCZyxcbiAgICAgIGRpc3BsYXk6IFwiZmxleFwiLCBmbGV4RGlyZWN0aW9uOiBcImNvbHVtblwiLCBhbGlnbkl0ZW1zOiBcImNlbnRlclwiLFxuICAgICAgcGFkZGluZzogXCIxOHB4IDEycHggMzJweFwiLFxuICAgICAgZm9udEZhbWlseTogXCInQmFsb28gMicsIGN1cnNpdmVcIixcbiAgICB9fT5cblxuICAgICAgey8qIOKUgOKUgCBIZWFkZXIg4pSA4pSAICovfVxuICAgICAgPGRpdiBzdHlsZT17eyB0ZXh0QWxpZ246IFwiY2VudGVyXCIsIG1hcmdpbkJvdHRvbTogMTQgfX0+XG4gICAgICAgIDxoMSBzdHlsZT17e1xuICAgICAgICAgIG1hcmdpbjogMCwgZm9udFNpemU6IDM2LCBmb250V2VpZ2h0OiA3MDAsXG4gICAgICAgICAgZm9udEZhbWlseTogXCInUGxheWZhaXIgRGlzcGxheScsIHNlcmlmXCIsXG4gICAgICAgICAgY29sb3I6IFwiI0Y1RTZDOFwiLFxuICAgICAgICAgIHRleHRTaGFkb3c6IFwiMCAycHggOHB4IHJnYmEoMCwwLDAsMC41KSwgMCAxcHggMCByZ2JhKDI1NSwyNTUsMjU1LDAuMTUpXCIsXG4gICAgICAgICAgbGV0dGVyU3BhY2luZzogMixcbiAgICAgICAgfX0+TUFTVEVSTUlORDwvaDE+XG4gICAgICAgIDxwIHN0eWxlPXt7IGNvbG9yOiBcInJnYmEoMjQ1LDIzMCwyMDAsMC41NSlcIiwgbWFyZ2luOiBcIjNweCAwIDBcIiwgZm9udFNpemU6IDExLCBsZXR0ZXJTcGFjaW5nOiAzIH19PlxuICAgICAgICAgIENSQUNLIFRIRSBDT0RFIMK3IHtNQVhfR1VFU1NFU30gR1VFU1NFUyDCtyA2IENPTE9SU1xuICAgICAgICA8L3A+XG4gICAgICA8L2Rpdj5cblxuICAgICAgey8qIOKUgOKUgCBTZWNyZXQgQ29kZSDilIDilIAgKi99XG4gICAgICA8ZGl2IHN0eWxlPXt7XG4gICAgICAgIGJhY2tncm91bmQ6IFwicmdiYSg0MCwyMCw4LDAuNTUpXCIsIGJvcmRlclJhZGl1czogMTQsXG4gICAgICAgIHBhZGRpbmc6IFwiMTBweCAyMnB4XCIsIG1hcmdpbkJvdHRvbTogMTAsIHRleHRBbGlnbjogXCJjZW50ZXJcIixcbiAgICAgICAgYm9yZGVyOiBcIjJweCBzb2xpZCByZ2JhKDI0NSwyMjAsMTYwLDAuMTgpXCIsXG4gICAgICAgIGJveFNoYWRvdzogXCIwIDRweCAxOHB4IHJnYmEoMCwwLDAsMC4zNSksIGluc2V0IDAgMXB4IDAgcmdiYSgyNTUsMjU1LDI1NSwwLjA3KVwiLFxuICAgICAgfX0+XG4gICAgICAgIDxkaXYgc3R5bGU9e3sgZm9udFNpemU6IDEwLCBjb2xvcjogXCJyZ2JhKDI0NSwyMjAsMTYwLDAuNSlcIiwgbGV0dGVyU3BhY2luZzogMywgbWFyZ2luQm90dG9tOiA4LCBmb250V2VpZ2h0OiA2MDAgfX0+XG4gICAgICAgICAgU0VDUkVUIENPREVcbiAgICAgICAgPC9kaXY+XG4gICAgICAgIDxTZWNyZXRSZXZlYWwgY29kZT17c2VjcmV0fSBzaG93PXtyZXZlYWxTZWNyZXR9IC8+XG4gICAgICA8L2Rpdj5cblxuICAgICAgey8qIOKUgOKUgCBMZWdlbmQg4pSA4pSAICovfVxuICAgICAgPGRpdiBzdHlsZT17eyBkaXNwbGF5OiBcImZsZXhcIiwgZ2FwOiAxNiwgbWFyZ2luQm90dG9tOiAxMCwgZm9udFNpemU6IDExLCBjb2xvcjogXCJyZ2JhKDI0NSwyMjAsMTYwLDAuNilcIiwgYWxpZ25JdGVtczogXCJjZW50ZXJcIiB9fT5cbiAgICAgICAgPHNwYW4gc3R5bGU9e3sgZGlzcGxheTogXCJmbGV4XCIsIGFsaWduSXRlbXM6IFwiY2VudGVyXCIsIGdhcDogNSB9fT5cbiAgICAgICAgICA8c3BhbiBzdHlsZT17eyBkaXNwbGF5OlwiaW5saW5lLWJsb2NrXCIsIHdpZHRoOjExLCBoZWlnaHQ6MTEsIGJvcmRlclJhZGl1czpcIjUwJVwiLFxuICAgICAgICAgICAgYmFja2dyb3VuZDpcInJhZGlhbC1ncmFkaWVudChjaXJjbGUgYXQgNDAlIDM1JSwgIzNhM2EzYSwgIzBhMGEwYSlcIixcbiAgICAgICAgICAgIGJveFNoYWRvdzpcIjAgMXB4IDRweCByZ2JhKDAsMCwwLDAuOSksIGluc2V0IDAgMXB4IDFweCByZ2JhKDI1NSwyNTUsMjU1LDAuMSlcIiB9fSAvPlxuICAgICAgICAgIFJpZ2h0IGNvbG9yICsgc3BvdFxuICAgICAgICA8L3NwYW4+XG4gICAgICAgIDxzcGFuIHN0eWxlPXt7IGRpc3BsYXk6IFwiZmxleFwiLCBhbGlnbkl0ZW1zOiBcImNlbnRlclwiLCBnYXA6IDUgfX0+XG4gICAgICAgICAgPHNwYW4gc3R5bGU9e3sgZGlzcGxheTpcImlubGluZS1ibG9ja1wiLCB3aWR0aDoxMSwgaGVpZ2h0OjExLCBib3JkZXJSYWRpdXM6XCI1MCVcIixcbiAgICAgICAgICAgIGJhY2tncm91bmQ6XCJyYWRpYWwtZ3JhZGllbnQoY2lyY2xlIGF0IDQwJSAzNSUsICNmZmZmZmYsICNkMGNjYzApXCIsXG4gICAgICAgICAgICBib3hTaGFkb3c6XCIwIDFweCA0cHggcmdiYSgyNTUsMjU1LDI1NSwwLjM1KVwiLFxuICAgICAgICAgICAgYm9yZGVyOlwiMXB4IHNvbGlkIHJnYmEoMTgwLDE3MCwxNTAsMC41KVwiIH19IC8+XG4gICAgICAgICAgUmlnaHQgY29sb3IsIHdyb25nIHNwb3RcbiAgICAgICAgPC9zcGFuPlxuICAgICAgPC9kaXY+XG5cbiAgICAgIHsvKiDilIDilIAgQm9hcmQg4pSA4pSAICovfVxuICAgICAgPGRpdiBzdHlsZT17e1xuICAgICAgICBiYWNrZ3JvdW5kOiBcInJnYmEoNDAsMjAsOCwwLjQ1KVwiLCBib3JkZXJSYWRpdXM6IDE4LCBwYWRkaW5nOiBcIjEwcHggOHB4XCIsXG4gICAgICAgIGJvcmRlcjogXCIycHggc29saWQgcmdiYSgyNDUsMjIwLDE2MCwwLjE1KVwiLFxuICAgICAgICBib3hTaGFkb3c6IFwiMCA2cHggMjhweCByZ2JhKDAsMCwwLDAuNDUpLCBpbnNldCAwIDFweCAwIHJnYmEoMjU1LDI1NSwyNTUsMC4wNilcIixcbiAgICAgICAgd2lkdGg6IFwiMTAwJVwiLCBtYXhXaWR0aDogMzgwLCBtYXJnaW5Cb3R0b206IDEyLFxuICAgICAgfX0+XG4gICAgICAgIHsvKiBTdWJtaXR0ZWQgcm93cyAqL31cbiAgICAgICAge2hpc3RvcnkubWFwKChlbnRyeSwgaSkgPT4gKFxuICAgICAgICAgIDxkaXYga2V5PXtpfSBjbGFzc05hbWU9XCJzbGlkZVwiIHN0eWxlPXt7XG4gICAgICAgICAgICBkaXNwbGF5OiBcImZsZXhcIiwgYWxpZ25JdGVtczogXCJjZW50ZXJcIiwgZ2FwOiAxMCxcbiAgICAgICAgICAgIHBhZGRpbmc6IFwiNXB4IDEycHhcIiwgYm9yZGVyUmFkaXVzOiAxMCxcbiAgICAgICAgICAgIGJvcmRlckJvdHRvbTogaSA8IGhpc3RvcnkubGVuZ3RoIC0gMSA/IFwiMXB4IHNvbGlkIHJnYmEoMjQ1LDIyMCwxNjAsMC4wNylcIiA6IFwibm9uZVwiLFxuICAgICAgICAgIH19PlxuICAgICAgICAgICAgPGRpdiBzdHlsZT17eyB3aWR0aDogMjAsIHRleHRBbGlnbjogXCJyaWdodFwiLCBmb250U2l6ZTogMTEsIGNvbG9yOiBcInJnYmEoMjQ1LDIyMCwxNjAsMC4zNSlcIiwgZmxleFNocmluazogMCwgZm9udFdlaWdodDogNjAwIH19PlxuICAgICAgICAgICAgICB7aSArIDF9XG4gICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICAgIDxkaXYgc3R5bGU9e3sgZGlzcGxheTogXCJmbGV4XCIsIGdhcDogNywgZmxleDogMSwganVzdGlmeUNvbnRlbnQ6IFwiY2VudGVyXCIgfX0+XG4gICAgICAgICAgICAgIHtlbnRyeS5ndWVzcy5tYXAoKGMsIGopID0+IDxQZWcga2V5PXtqfSBjb2xvcj17Y30gc2l6ZT17MzZ9IC8+KX1cbiAgICAgICAgICAgIDwvZGl2PlxuICAgICAgICAgICAgPGRpdiBzdHlsZT17eyBmbGV4U2hyaW5rOiAwIH19PlxuICAgICAgICAgICAgICA8RmVlZGJhY2tEb3RzIGJsYWNrcz17ZW50cnkuZmVlZGJhY2suYmxhY2tzfSB3aGl0ZXM9e2VudHJ5LmZlZWRiYWNrLndoaXRlc30gLz5cbiAgICAgICAgICAgIDwvZGl2PlxuICAgICAgICAgIDwvZGl2PlxuICAgICAgICApKX1cblxuICAgICAgICB7LyogQWN0aXZlIGlucHV0IHJvdyAqL31cbiAgICAgICAgeyFnYW1lT3ZlciAmJiAoXG4gICAgICAgICAgPGRpdiBjbGFzc05hbWU9e3NoYWtlID8gXCJzaGFrZVwiIDogXCJcIn0gc3R5bGU9e3tcbiAgICAgICAgICAgIGJhY2tncm91bmQ6IFwicmdiYSgyNDUsMjIwLDE2MCwwLjA3KVwiLFxuICAgICAgICAgICAgYm9yZGVyOiBcIjEuNXB4IHNvbGlkIHJnYmEoMjQ1LDIyMCwxNjAsMC4yMilcIixcbiAgICAgICAgICAgIGJvcmRlclJhZGl1czogMTIsIHBhZGRpbmc6IFwiMTBweCAxMnB4XCIsXG4gICAgICAgICAgICBtYXJnaW5Ub3A6IGhpc3RvcnkubGVuZ3RoID4gMCA/IDYgOiAwLFxuICAgICAgICAgIH19PlxuICAgICAgICAgICAgPGRpdiBzdHlsZT17eyBmb250U2l6ZTogMTAsIGNvbG9yOiBcInJnYmEoMjQ1LDIyMCwxNjAsMC40NSlcIiwgbGV0dGVyU3BhY2luZzogMywgdGV4dEFsaWduOiBcImNlbnRlclwiLCBtYXJnaW5Cb3R0b206IDksIGZvbnRXZWlnaHQ6IDYwMCB9fT5cbiAgICAgICAgICAgICAgR1VFU1Mge2hpc3RvcnkubGVuZ3RoICsgMX0gT0Yge01BWF9HVUVTU0VTfVxuICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgICA8ZGl2IHN0eWxlPXt7IGRpc3BsYXk6IFwiZmxleFwiLCBnYXA6IDgsIGp1c3RpZnlDb250ZW50OiBcImNlbnRlclwiLCBtYXJnaW5Cb3R0b206IDEyIH19PlxuICAgICAgICAgICAgICB7QXJyYXkuZnJvbSh7IGxlbmd0aDogQ09ERV9MRU5HVEggfSkubWFwKChfLCBpKSA9PiAoXG4gICAgICAgICAgICAgICAgPFBlZyBrZXk9e2l9IGNvbG9yPXtjdXJyZW50W2ldID8/IG51bGx9IHNpemU9ezQ0fSBvbkNsaWNrPXsoKSA9PiBoYW5kbGVQZWdDbGljayhpKX0gLz5cbiAgICAgICAgICAgICAgKSl9XG4gICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICAgIDxDb2xvclBpY2tlciBzZWxlY3RlZD17c2VsZWN0ZWRDb2xvcn0gb25TZWxlY3Q9e3NldFNlbGVjdGVkfSAvPlxuICAgICAgICAgICAgPGJ1dHRvbiBvbkNsaWNrPXtoYW5kbGVTdWJtaXR9IHN0eWxlPXt7XG4gICAgICAgICAgICAgIHdpZHRoOiBcIjEwMCVcIiwgcGFkZGluZzogXCIxMXB4XCIsIG1hcmdpblRvcDogMTIsXG4gICAgICAgICAgICAgIGJvcmRlclJhZGl1czogMTAsIGJvcmRlcjogXCJub25lXCIsXG4gICAgICAgICAgICAgIGJhY2tncm91bmQ6IGN1cnJlbnQuZXZlcnkoQm9vbGVhbilcbiAgICAgICAgICAgICAgICA/IFwibGluZWFyLWdyYWRpZW50KDEzNWRlZywgIzhCMjUwMCwgI0M2MjgyOClcIlxuICAgICAgICAgICAgICAgIDogXCJyZ2JhKDI0NSwyMjAsMTYwLDAuMDgpXCIsXG4gICAgICAgICAgICAgIGNvbG9yOiBjdXJyZW50LmV2ZXJ5KEJvb2xlYW4pID8gXCIjRjVFNkM4XCIgOiBcInJnYmEoMjQ1LDIyMCwxNjAsMC4yNSlcIixcbiAgICAgICAgICAgICAgZm9udFNpemU6IDE0LCBmb250V2VpZ2h0OiA3MDAsIGZvbnRGYW1pbHk6IFwiJ0JhbG9vIDInLCBjdXJzaXZlXCIsXG4gICAgICAgICAgICAgIGN1cnNvcjogY3VycmVudC5ldmVyeShCb29sZWFuKSA/IFwicG9pbnRlclwiIDogXCJub3QtYWxsb3dlZFwiLFxuICAgICAgICAgICAgICBsZXR0ZXJTcGFjaW5nOiAxLjUsXG4gICAgICAgICAgICAgIGJveFNoYWRvdzogY3VycmVudC5ldmVyeShCb29sZWFuKSA/IFwiMCA0cHggMTZweCByZ2JhKDE0MCwzNywwLDAuNSlcIiA6IFwibm9uZVwiLFxuICAgICAgICAgICAgICB0cmFuc2l0aW9uOiBcImFsbCAwLjJzXCIsXG4gICAgICAgICAgICB9fT5cbiAgICAgICAgICAgICAgQ0hFQ0sgR1VFU1Mg4pyTXG4gICAgICAgICAgICA8L2J1dHRvbj5cbiAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgKX1cblxuICAgICAgICB7IWdhbWVPdmVyICYmIGhpc3RvcnkubGVuZ3RoID09PSAwICYmIChcbiAgICAgICAgICA8cCBzdHlsZT17eyBmb250U2l6ZTogMTEsIGNvbG9yOiBcInJnYmEoMjQ1LDIyMCwxNjAsMC4zKVwiLCB0ZXh0QWxpZ246IFwiY2VudGVyXCIsIG1hcmdpbjogXCI0cHggMCA2cHhcIiB9fT5cbiAgICAgICAgICAgIFBpY2sgYSBjb2xvciDihpIgdGFwIGEgc2xvdCDihpIgc3VibWl0IVxuICAgICAgICAgIDwvcD5cbiAgICAgICAgKX1cbiAgICAgIDwvZGl2PlxuXG4gICAgICB7Lyog4pSA4pSAIEdhbWUgT3ZlciBCYW5uZXIg4pSA4pSAICovfVxuICAgICAge2dhbWVPdmVyICYmIChcbiAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJwb3BcIiBzdHlsZT17e1xuICAgICAgICAgIGJhY2tncm91bmQ6IHdvblxuICAgICAgICAgICAgPyBcImxpbmVhci1ncmFkaWVudCgxMzVkZWcsIHJnYmEoMjAsODAsMzAsMC45NSksIHJnYmEoMTAsNTAsMjAsMC45NSkpXCJcbiAgICAgICAgICAgIDogXCJsaW5lYXItZ3JhZGllbnQoMTM1ZGVnLCByZ2JhKDEwMCwxNSw1LDAuOTUpLCByZ2JhKDcwLDEwLDAsMC45NSkpXCIsXG4gICAgICAgICAgYm9yZGVyOiBgMnB4IHNvbGlkICR7d29uID8gXCJyZ2JhKDEwMCwyMDAsODAsMC41KVwiIDogXCJyZ2JhKDIwMCw0MCwyMCwwLjUpXCJ9YCxcbiAgICAgICAgICBib3JkZXJSYWRpdXM6IDE4LCBwYWRkaW5nOiBcIjE4cHggMjRweFwiLCB0ZXh0QWxpZ246IFwiY2VudGVyXCIsXG4gICAgICAgICAgd2lkdGg6IFwiMTAwJVwiLCBtYXhXaWR0aDogMzgwLCBtYXJnaW5Cb3R0b206IDEyLFxuICAgICAgICAgIGJveFNoYWRvdzogXCIwIDhweCAzMnB4IHJnYmEoMCwwLDAsMC41KVwiLFxuICAgICAgICB9fT5cbiAgICAgICAgICA8ZGl2IHN0eWxlPXt7IGZvbnRTaXplOiAzNCwgbWFyZ2luQm90dG9tOiA0IH19Pnt3b24gPyBcIvCfjolcIiA6IFwi8J+SgFwifTwvZGl2PlxuICAgICAgICAgIDxkaXYgc3R5bGU9e3sgZm9udFNpemU6IDIyLCBmb250V2VpZ2h0OiA3MDAsIGZvbnRGYW1pbHk6IFwiJ1BsYXlmYWlyIERpc3BsYXknLCBzZXJpZlwiLCBjb2xvcjogXCIjRjVFNkM4XCIsIG1hcmdpbkJvdHRvbTogNCB9fT5cbiAgICAgICAgICAgIHt3b24gPyBcIllPVSBDUkFDS0VEIElUIVwiIDogXCJHQU1FIE9WRVJcIn1cbiAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICA8ZGl2IHN0eWxlPXt7IGZvbnRTaXplOiAxMywgY29sb3I6IFwicmdiYSgyNDUsMjMwLDIwMCwwLjc1KVwiLCBtYXJnaW5Cb3R0b206IDE0IH19PlxuICAgICAgICAgICAge3dvblxuICAgICAgICAgICAgICA/IGBTb2x2ZWQgaW4gJHtoaXN0b3J5Lmxlbmd0aH0gZ3Vlc3Mke2hpc3RvcnkubGVuZ3RoID09PSAxID8gXCJcIiA6IFwiZXNcIn0hIPCfp6BgXG4gICAgICAgICAgICAgIDogXCJUaGUgY29kZSBpcyByZXZlYWxlZCBhYm92ZS5cIn1cbiAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICA8YnV0dG9uIG9uQ2xpY2s9e2hhbmRsZVJlc2V0fSBzdHlsZT17e1xuICAgICAgICAgICAgcGFkZGluZzogXCIxMXB4IDI4cHhcIiwgYm9yZGVyUmFkaXVzOiAxMCwgYm9yZGVyOiBcIm5vbmVcIixcbiAgICAgICAgICAgIGJhY2tncm91bmQ6IFwiI0Y1RTZDOFwiLCBjb2xvcjogd29uID8gXCIjMWE0ZDEwXCIgOiBcIiM4QjE1MDBcIixcbiAgICAgICAgICAgIGZvbnRTaXplOiAxNCwgZm9udFdlaWdodDogODAwLCBmb250RmFtaWx5OiBcIidCYWxvbyAyJywgY3Vyc2l2ZVwiLFxuICAgICAgICAgICAgY3Vyc29yOiBcInBvaW50ZXJcIiwgbGV0dGVyU3BhY2luZzogMC41LFxuICAgICAgICAgICAgYm94U2hhZG93OiBcIjAgMnB4IDEwcHggcmdiYSgwLDAsMCwwLjMpXCIsXG4gICAgICAgICAgfX0+XG4gICAgICAgICAgICBQTEFZIEFHQUlOIOKGklxuICAgICAgICAgIDwvYnV0dG9uPlxuICAgICAgICA8L2Rpdj5cbiAgICAgICl9XG5cbiAgICAgIHsvKiDilIDilIAgTmV3IEdhbWUgYnV0dG9uIOKUgOKUgCAqL31cbiAgICAgIHshZ2FtZU92ZXIgJiYgKFxuICAgICAgICA8YnV0dG9uIG9uQ2xpY2s9e2hhbmRsZVJlc2V0fSBzdHlsZT17e1xuICAgICAgICAgIHBhZGRpbmc6IFwiOHB4IDIwcHhcIiwgYm9yZGVyUmFkaXVzOiAxMCxcbiAgICAgICAgICBib3JkZXI6IFwiMS41cHggc29saWQgcmdiYSgyNDUsMjIwLDE2MCwwLjI1KVwiLFxuICAgICAgICAgIGJhY2tncm91bmQ6IFwicmdiYSg0MCwyMCw4LDAuMzUpXCIsIGNvbG9yOiBcInJnYmEoMjQ1LDIyMCwxNjAsMC40NSlcIixcbiAgICAgICAgICBmb250U2l6ZTogMTIsIGZvbnRGYW1pbHk6IFwiJ0JhbG9vIDInLCBjdXJzaXZlXCIsXG4gICAgICAgICAgY3Vyc29yOiBcInBvaW50ZXJcIiwgbGV0dGVyU3BhY2luZzogMC41LFxuICAgICAgICB9fT5cbiAgICAgICAgICDihrogTmV3IEdhbWVcbiAgICAgICAgPC9idXR0b24+XG4gICAgICApfVxuICAgIDwvZGl2PlxuICApO1xufVxuXG5jb25zdCByb290ID0gUmVhY3RET00uY3JlYXRlUm9vdChkb2N1bWVudC5nZXRFbGVtZW50QnlJZChcInJvb3RcIikpO1xucm9vdC5yZW5kZXIoPEFwcCAvPik7XG4iXSwibWFwcGluZ3MiOiI7Ozs7Ozs7Ozs7OztBQUNBLElBQUFBLE1BQUEsR0FBcUJDLEtBQUs7RUFBbEJDLFFBQVEsR0FBQUYsTUFBQSxDQUFSRSxRQUFRO0FBRWhCLElBQU1DLE1BQU0sR0FBRyxDQUNiO0VBQUVDLEVBQUUsRUFBRSxPQUFPO0VBQUdDLEdBQUcsRUFBRSxTQUFTO0VBQUVDLEtBQUssRUFBRTtBQUFTLENBQUMsRUFDakQ7RUFBRUYsRUFBRSxFQUFFLE9BQU87RUFBR0MsR0FBRyxFQUFFLFNBQVM7RUFBRUMsS0FBSyxFQUFFO0FBQVMsQ0FBQyxFQUNqRDtFQUFFRixFQUFFLEVBQUUsUUFBUTtFQUFFQyxHQUFHLEVBQUUsU0FBUztFQUFFQyxLQUFLLEVBQUU7QUFBUyxDQUFDLEVBQ2pEO0VBQUVGLEVBQUUsRUFBRSxNQUFNO0VBQUlD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SUFBS0MsS0FBSyxFQUFFO01BQUVxQyxRQUFRLEVBQUUsRUFBRTtNQUFFNUMsS0FBSyxFQUFFLHdCQUF3QjtNQUFFMEYsWUFBWSxFQUFFO0lBQUc7RUFBRSxHQUM3RWQsR0FBRyxnQkFBQS9ELE1BQUEsQ0FDYXlDLE9BQU8sQ0FBQ2hGLE1BQU0sWUFBQXVDLE1BQUEsQ0FBU3lDLE9BQU8sQ0FBQ2hGLE1BQU0sS0FBSyxDQUFDLEdBQUcsRUFBRSxHQUFHLElBQUksc0JBQ3BFLDZCQUNELENBQUMsZUFDTlgsS0FBQSxDQUFBMkMsYUFBQTtJQUFRSCxPQUFPLEVBQUVrRixXQUFZO0lBQUM5RSxLQUFLLEVBQUU7TUFDbkNxQixPQUFPLEVBQUUsV0FBVztNQUFFbEIsWUFBWSxFQUFFLEVBQUU7TUFBRUksTUFBTSxFQUFFLE1BQU07TUFDdERGLFVBQVUsRUFBRSxTQUFTO01BQUVaLEtBQUssRUFBRTRFLEdBQUcsR0FBRyxTQUFTLEdBQUcsU0FBUztNQUN6RGhDLFFBQVEsRUFBRSxFQUFFO01BQUVFLFVBQVUsRUFBRSxHQUFHO01BQUVELFVBQVUsRUFBRSxvQkFBb0I7TUFDL0Q3QixNQUFNLEVBQUUsU0FBUztNQUFFNkUsYUFBYSxFQUFFLEdBQUc7TUFDckM5RSxTQUFTLEVBQUU7SUFDYjtFQUFFLEdBQUMsbUJBRUssQ0FDTCxDQUNOLEVBR0EsQ0FBQ21ELFFBQVEsaUJBQ1J2RyxLQUFBLENBQUEyQyxhQUFBO0lBQVFILE9BQU8sRUFBRWtGLFdBQVk7SUFBQzlFLEtBQUssRUFBRTtNQUNuQ3FCLE9BQU8sRUFBRSxVQUFVO01BQUVsQixZQUFZLEVBQUUsRUFBRTtNQUNyQ0ksTUFBTSxFQUFFLG9DQUFvQztNQUM1Q0YsVUFBVSxFQUFFLG9CQUFvQjtNQUFFWixLQUFLLEVBQUUsd0JBQXdCO01BQ2pFNEMsUUFBUSxFQUFFLEVBQUU7TUFBRUMsVUFBVSxFQUFFLG9CQUFvQjtNQUM5QzdCLE1BQU0sRUFBRSxTQUFTO01BQUU2RSxhQUFhLEVBQUU7SUFDcEM7RUFBRSxHQUFDLGlCQUVLLENBRVAsQ0FBQztBQUVWO0FBRUEsSUFBTVksSUFBSSxHQUFHQyxRQUFRLENBQUNDLFVBQVUsQ0FBQ0MsUUFBUSxDQUFDQyxjQUFjLENBQUMsTUFBTSxDQUFDLENBQUM7QUFDakVKLElBQUksQ0FBQ0ssTUFBTSxjQUFDbkosS0FBQSxDQUFBMkMsYUFBQSxDQUFDeUMsR0FBRyxNQUFFLENBQUMsQ0FBQyIsImlnbm9yZUxpc3QiOltdfQ==</script></head>
+<body>
+<div id="root"><div style="min-height: 100vh; background: repeating-linear-gradient(92deg, transparent 0px, transparent 2px, rgba(0, 0, 0, 0.03) 2px, rgba(0, 0, 0, 0.03) 3px), repeating-linear-gradient(88deg, transparent 0px, transparent 8px, rgba(255, 255, 255, 0.04) 8px, rgba(255, 255, 255, 0.04) 9px), repeating-linear-gradient(91deg, transparent 0px, transparent 18px, rgba(0, 0, 0, 0.04) 18px, rgba(0, 0, 0, 0.04) 22px), linear-gradient(170deg, rgb(139, 94, 60) 0%, rgb(107, 63, 32) 30%, rgb(122, 78, 45) 55%, rgb(92, 51, 23) 80%, rgb(107, 63, 32) 100%); display: flex; flex-direction: column; align-items: center; padding: 18px 12px 32px; font-family: &quot;Baloo 2&quot;, cursive;"><div style="text-align: center; margin-bottom: 14px;"><h1 style="margin: 0px; font-size: 36px; font-weight: 700; font-family: &quot;Playfair Display&quot;, serif; color: rgb(245, 230, 200); text-shadow: rgba(0, 0, 0, 0.5) 0px 2px 8px, rgba(255, 255, 255, 0.15) 0px 1px 0px; letter-spacing: 2px;">MASTERMIND</h1><p style="color: rgba(245, 230, 200, 0.55); margin: 3px 0px 0px; font-size: 11px; letter-spacing: 3px;">CRACK THE CODE · 10 GUESSES · 6 COLORS</p></div><div style="background: rgba(40, 20, 8, 0.55); border-radius: 14px; padding: 10px 22px; margin-bottom: 10px; text-align: center; border: 2px solid rgba(245, 220, 160, 0.18); box-shadow: rgba(0, 0, 0, 0.35) 0px 4px 18px, rgba(255, 255, 255, 0.07) 0px 1px 0px inset;"><div style="font-size: 10px; color: rgba(245, 220, 160, 0.5); letter-spacing: 3px; margin-bottom: 8px; font-weight: 600;">SECRET CODE</div><div style="display: flex; gap: 8px; justify-content: center;"><div style="width: 38px; height: 38px; border-radius: 50%; flex-shrink: 0; background: radial-gradient(circle at 35% 35%, rgb(240, 236, 224), rgba(240, 236, 224, 0.733)); border: 2px solid rgba(160, 140, 100, 0.6); box-shadow: rgba(0, 0, 0, 0.5) 0px 4px 14px, rgba(255, 255, 255, 0.35) 0px 2px 4px inset; cursor: default; transition: transform 0.12s;"></div><div style="width: 38px; height: 38px; border-radius: 50%; flex-shrink: 0; background: radial-gradient(circle at 35% 35%, rgb(21, 101, 192), rgba(21, 101, 192, 0.733)); border: none; box-shadow: rgba(0, 0, 0, 0.5) 0px 4px 14px, rgba(255, 255, 255, 0.35) 0px 2px 4px inset; cursor: default; transition: transform 0.12s;"></div><div style="width: 38px; height: 38px; border-radius: 50%; flex-shrink: 0; background: radial-gradient(circle at 35% 35%, rgb(245, 200, 0), rgba(245, 200, 0, 0.733)); border: none; box-shadow: rgba(0, 0, 0, 0.5) 0px 4px 14px, rgba(255, 255, 255, 0.35) 0px 2px 4px inset; cursor: default; transition: transform 0.12s;"></div><div style="width: 38px; height: 38px; border-radius: 50%; flex-shrink: 0; background: radial-gradient(circle at 35% 35%, rgb(240, 236, 224), rgba(240, 236, 224, 0.733)); border: 2px solid rgba(160, 140, 100, 0.6); box-shadow: rgba(0, 0, 0, 0.5) 0px 4px 14px, rgba(255, 255, 255, 0.35) 0px 2px 4px inset; cursor: default; transition: transform 0.12s;"></div></div></div><div style="display: flex; gap: 16px; margin-bottom: 10px; font-size: 11px; color: rgba(245, 220, 160, 0.6); align-items: center;"><span style="display: flex; align-items: center; gap: 5px;"><span style="display: inline-block; width: 11px; height: 11px; border-radius: 50%; background: radial-gradient(circle at 40% 35%, rgb(58, 58, 58), rgb(10, 10, 10)); box-shadow: rgba(0, 0, 0, 0.9) 0px 1px 4px, rgba(255, 255, 255, 0.1) 0px 1px 1px inset;"></span>Right color + spot</span><span style="display: flex; align-items: center; gap: 5px;"><span style="display: inline-block; width: 11px; height: 11px; border-radius: 50%; background: radial-gradient(circle at 40% 35%, rgb(255, 255, 255), rgb(208, 204, 192)); box-shadow: rgba(255, 255, 255, 0.35) 0px 1px 4px; border: 1px solid rgba(180, 170, 150, 0.5);"></span>Right color, wrong spot</span></div><div style="background: rgba(40, 20, 8, 0.45); border-radius: 18px; padding: 10px 8px; border: 2px solid rgba(245, 220, 160, 0.15); box-shadow: rgba(0, 0, 0, 0.45) 0px 6px 28px, rgba(255, 255, 255, 0.06) 0px 1px 0px inset; width: 100%; max-width: 380px; margin-bottom: 12px;"><div class="slide" style="display: flex; align-items: center; gap: 10px; padding: 5px 12px; border-radius: 10px; border-bottom: 1px solid rgba(245, 220, 160, 0.07);"><div style="width: 20px; text-align: right; font-size: 11px; color: rgba(245, 220, 160, 0.35); flex-shrink: 0; font-weight: 600;">1</div><div style="display: flex; gap: 7px; flex: 1 1 0%; justify-content: center;"><div style="width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0; background: radial-gradient(circle at 35% 35%, rgb(26, 26, 26), rgba(26, 26, 26, 0.733)); border: none; box-shadow: rgba(0, 0, 0, 0.5) 0px 4px 14px, rgba(255, 255, 255, 0.35) 0px 2px 4px inset; cursor: default; transition: transform 0.12s;"></div><div style="width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0; background: radial-gradient(circle at 35% 35%, rgb(245, 200, 0), rgba(245, 200, 0, 0.733)); border: none; box-shadow: rgba(0, 0, 0, 0.5) 0px 4px 14px, rgba(255, 255, 255, 0.35) 0px 2px 4px inset; cursor: default; transition: transform 0.12s;"></div><div style="width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0; background: radial-gradient(circle at 35% 35%, rgb(21, 101, 192), rgba(21, 101, 192, 0.733)); border: none; box-shadow: rgba(0, 0, 0, 0.5) 0px 4px 14px, rgba(255, 255, 255, 0.35) 0px 2px 4px inset; cursor: default; transition: transform 0.12s;"></div><div style="width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0; background: radial-gradient(circle at 35% 35%, rgb(46, 125, 50), rgba(46, 125, 50, 0.733)); border: none; box-shadow: rgba(0, 0, 0, 0.5) 0px 4px 14px, rgba(255, 255, 255, 0.35) 0px 2px 4px inset; cursor: default; transition: transform 0.12s;"></div></div><div style="flex-shrink: 0;"><div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px; width: 40px; height: 40px; place-items: center; padding: 2px;"><div style="width: 14px; height: 14px; border-radius: 50%; background: radial-gradient(circle at 40% 35%, rgb(255, 255, 255), rgb(192, 192, 208)); box-shadow: rgba(255, 255, 255, 0.5) 0px 1px 5px, rgba(255, 255, 255, 0.8) 0px 1px 2px inset; border: none;"></div><div style="width: 14px; height: 14px; border-radius: 50%; background: radial-gradient(circle at 40% 35%, rgb(255, 255, 255), rgb(192, 192, 208)); box-shadow: rgba(255, 255, 255, 0.5) 0px 1px 5px, rgba(255, 255, 255, 0.8) 0px 1px 2px inset; border: none;"></div><div style="width: 14px; height: 14px; border-radius: 50%; background: transparent; box-shadow: none; border: 1.5px solid rgba(255, 255, 255, 0.15);"></div><div style="width: 14px; height: 14px; border-radius: 50%; background: transparent; box-shadow: none; border: 1.5px solid rgba(255, 255, 255, 0.15);"></div></div></div></div><div class="slide" style="display: flex; align-items: center; gap: 10px; padding: 5px 12px; border-radius: 10px; border-bottom: 1px solid rgba(245, 220, 160, 0.07);"><div style="width: 20px; text-align: right; font-size: 11px; color: rgba(245, 220, 160, 0.35); flex-shrink: 0; font-weight: 600;">2</div><div style="display: flex; gap: 7px; flex: 1 1 0%; justify-content: center;"><div style="width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0; background: radial-gradient(circle at 35% 35%, rgb(240, 236, 224), rgba(240, 236, 224, 0.733)); border: 2px solid rgba(160, 140, 100, 0.6); box-shadow: rgba(0, 0, 0, 0.5) 0px 4px 14px, rgba(255, 255, 255, 0.35) 0px 2px 4px inset; cursor: default; transition: transform 0.12s;"></div><div style="width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0; background: radial-gradient(circle at 35% 35%, rgb(26, 26, 26), rgba(26, 26, 26, 0.733)); border: none; box-shadow: rgba(0, 0, 0, 0.5) 0px 4px 14px, rgba(255, 255, 255, 0.35) 0px 2px 4px inset; cursor: default; transition: transform 0.12s;"></div><div style="width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0; background: radial-gradient(circle at 35% 35%, rgb(245, 200, 0), rgba(245, 200, 0, 0.733)); border: none; box-shadow: rgba(0, 0, 0, 0.5) 0px 4px 14px, rgba(255, 255, 255, 0.35) 0px 2px 4px inset; cursor: default; transition: transform 0.12s;"></div><div style="width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0; background: radial-gradient(circle at 35% 35%, rgb(46, 125, 50), rgba(46, 125, 50, 0.733)); border: none; box-shadow: rgba(0, 0, 0, 0.5) 0px 4px 14px, rgba(255, 255, 255, 0.35) 0px 2px 4px inset; cursor: default; transition: transform 0.12s;"></div></div><div style="flex-shrink: 0;"><div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px; width: 40px; height: 40px; place-items: center; padding: 2px;"><div style="width: 14px; height: 14px; border-radius: 50%; background: radial-gradient(circle at 40% 35%, rgb(74, 74, 106), rgb(13, 13, 26)); box-shadow: rgba(0, 0, 0, 0.8) 0px 1px 4px, rgba(255, 255, 255, 0.15) 0px 1px 2px inset; border: none;"></div><div style="width: 14px; height: 14px; border-radius: 50%; background: radial-gradient(circle at 40% 35%, rgb(74, 74, 106), rgb(13, 13, 26)); box-shadow: rgba(0, 0, 0, 0.8) 0px 1px 4px, rgba(255, 255, 255, 0.15) 0px 1px 2px inset; border: none;"></div><div style="width: 14px; height: 14px; border-radius: 50%; background: transparent; box-shadow: none; border: 1.5px solid rgba(255, 255, 255, 0.15);"></div><div style="width: 14px; height: 14px; border-radius: 50%; background: transparent; box-shadow: none; border: 1.5px solid rgba(255, 255, 255, 0.15);"></div></div></div></div><div class="slide" style="display: flex; align-items: center; gap: 10px; padding: 5px 12px; border-radius: 10px; border-bottom: 1px solid rgba(245, 220, 160, 0.07);"><div style="width: 20px; text-align: right; font-size: 11px; color: rgba(245, 220, 160, 0.35); flex-shrink: 0; font-weight: 600;">3</div><div style="display: flex; gap: 7px; flex: 1 1 0%; justify-content: center;"><div style="width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0; background: radial-gradient(circle at 35% 35%, rgb(21, 101, 192), rgba(21, 101, 192, 0.733)); border: none; box-shadow: rgba(0, 0, 0, 0.5) 0px 4px 14px, rgba(255, 255, 255, 0.35) 0px 2px 4px inset; cursor: default; transition: transform 0.12s;"></div><div style="width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0; background: radial-gradient(circle at 35% 35%, rgb(26, 26, 26), rgba(26, 26, 26, 0.733)); border: none; box-shadow: rgba(0, 0, 0, 0.5) 0px 4px 14px, rgba(255, 255, 255, 0.35) 0px 2px 4px inset; cursor: default; transition: transform 0.12s;"></div><div style="width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0; background: radial-gradient(circle at 35% 35%, rgb(245, 200, 0), rgba(245, 200, 0, 0.733)); border: none; box-shadow: rgba(0, 0, 0, 0.5) 0px 4px 14px, rgba(255, 255, 255, 0.35) 0px 2px 4px inset; cursor: default; transition: transform 0.12s;"></div><div style="width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0; background: radial-gradient(circle at 35% 35%, rgb(198, 40, 40), rgba(198, 40, 40, 0.733)); border: none; box-shadow: rgba(0, 0, 0, 0.5) 0px 4px 14px, rgba(255, 255, 255, 0.35) 0px 2px 4px inset; cursor: default; transition: transform 0.12s;"></div></div><div style="flex-shrink: 0;"><div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px; width: 40px; height: 40px; place-items: center; padding: 2px;"><div style="width: 14px; height: 14px; border-radius: 50%; background: radial-gradient(circle at 40% 35%, rgb(74, 74, 106), rgb(13, 13, 26)); box-shadow: rgba(0, 0, 0, 0.8) 0px 1px 4px, rgba(255, 255, 255, 0.15) 0px 1px 2px inset; border: none;"></div><div style="width: 14px; height: 14px; border-radius: 50%; background: radial-gradient(circle at 40% 35%, rgb(255, 255, 255), rgb(192, 192, 208)); box-shadow: rgba(255, 255, 255, 0.5) 0px 1px 5px, rgba(255, 255, 255, 0.8) 0px 1px 2px inset; border: none;"></div><div style="width: 14px; height: 14px; border-radius: 50%; background: transparent; box-shadow: none; border: 1.5px solid rgba(255, 255, 255, 0.15);"></div><div style="width: 14px; height: 14px; border-radius: 50%; background: transparent; box-shadow: none; border: 1.5px solid rgba(255, 255, 255, 0.15);"></div></div></div></div><div class="slide" style="display: flex; align-items: center; gap: 10px; padding: 5px 12px; border-radius: 10px; border-bottom: 1px solid rgba(245, 220, 160, 0.07);"><div style="width: 20px; text-align: right; font-size: 11px; color: rgba(245, 220, 160, 0.35); flex-shrink: 0; font-weight: 600;">4</div><div style="display: flex; gap: 7px; flex: 1 1 0%; justify-content: center;"><div style="width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0; background: radial-gradient(circle at 35% 35%, rgb(240, 236, 224), rgba(240, 236, 224, 0.733)); border: 2px solid rgba(160, 140, 100, 0.6); box-shadow: rgba(0, 0, 0, 0.5) 0px 4px 14px, rgba(255, 255, 255, 0.35) 0px 2px 4px inset; cursor: default; transition: transform 0.12s;"></div><div style="width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0; background: radial-gradient(circle at 35% 35%, rgb(26, 26, 26), rgba(26, 26, 26, 0.733)); border: none; box-shadow: rgba(0, 0, 0, 0.5) 0px 4px 14px, rgba(255, 255, 255, 0.35) 0px 2px 4px inset; cursor: default; transition: transform 0.12s;"></div><div style="width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0; background: radial-gradient(circle at 35% 35%, rgb(245, 200, 0), rgba(245, 200, 0, 0.733)); border: none; box-shadow: rgba(0, 0, 0, 0.5) 0px 4px 14px, rgba(255, 255, 255, 0.35) 0px 2px 4px inset; cursor: default; transition: transform 0.12s;"></div><div style="width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0; background: radial-gradient(circle at 35% 35%, rgb(46, 125, 50), rgba(46, 125, 50, 0.733)); border: none; box-shadow: rgba(0, 0, 0, 0.5) 0px 4px 14px, rgba(255, 255, 255, 0.35) 0px 2px 4px inset; cursor: default; transition: transform 0.12s;"></div></div><div style="flex-shrink: 0;"><div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px; width: 40px; height: 40px; place-items: center; padding: 2px;"><div style="width: 14px; height: 14px; border-radius: 50%; background: radial-gradient(circle at 40% 35%, rgb(74, 74, 106), rgb(13, 13, 26)); box-shadow: rgba(0, 0, 0, 0.8) 0px 1px 4px, rgba(255, 255, 255, 0.15) 0px 1px 2px inset; border: none;"></div><div style="width: 14px; height: 14px; border-radius: 50%; background: radial-gradient(circle at 40% 35%, rgb(74, 74, 106), rgb(13, 13, 26)); box-shadow: rgba(0, 0, 0, 0.8) 0px 1px 4px, rgba(255, 255, 255, 0.15) 0px 1px 2px inset; border: none;"></div><div style="width: 14px; height: 14px; border-radius: 50%; background: transparent; box-shadow: none; border: 1.5px solid rgba(255, 255, 255, 0.15);"></div><div style="width: 14px; height: 14px; border-radius: 50%; background: transparent; box-shadow: none; border: 1.5px solid rgba(255, 255, 255, 0.15);"></div></div></div></div><div class="slide" style="display: flex; align-items: center; gap: 10px; padding: 5px 12px; border-radius: 10px; border-bottom: 1px solid rgba(245, 220, 160, 0.07);"><div style="width: 20px; text-align: right; font-size: 11px; color: rgba(245, 220, 160, 0.35); flex-shrink: 0; font-weight: 600;">5</div><div style="display: flex; gap: 7px; flex: 1 1 0%; justify-content: center;"><div style="width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0; background: radial-gradient(circle at 35% 35%, rgb(21, 101, 192), rgba(21, 101, 192, 0.733)); border: none; box-shadow: rgba(0, 0, 0, 0.5) 0px 4px 14px, rgba(255, 255, 255, 0.35) 0px 2px 4px inset; cursor: default; transition: transform 0.12s;"></div><div style="width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0; background: radial-gradient(circle at 35% 35%, rgb(26, 26, 26), rgba(26, 26, 26, 0.733)); border: none; box-shadow: rgba(0, 0, 0, 0.5) 0px 4px 14px, rgba(255, 255, 255, 0.35) 0px 2px 4px inset; cursor: default; transition: transform 0.12s;"></div><div style="width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0; background: radial-gradient(circle at 35% 35%, rgb(21, 101, 192), rgba(21, 101, 192, 0.733)); border: none; box-shadow: rgba(0, 0, 0, 0.5) 0px 4px 14px, rgba(255, 255, 255, 0.35) 0px 2px 4px inset; cursor: default; transition: transform 0.12s;"></div><div style="width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0; background: radial-gradient(circle at 35% 35%, rgb(46, 125, 50), rgba(46, 125, 50, 0.733)); border: none; box-shadow: rgba(0, 0, 0, 0.5) 0px 4px 14px, rgba(255, 255, 255, 0.35) 0px 2px 4px inset; cursor: default; transition: transform 0.12s;"></div></div><div style="flex-shrink: 0;"><div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px; width: 40px; height: 40px; place-items: center; padding: 2px;"><div style="width: 14px; height: 14px; border-radius: 50%; background: radial-gradient(circle at 40% 35%, rgb(255, 255, 255), rgb(192, 192, 208)); box-shadow: rgba(255, 255, 255, 0.5) 0px 1px 5px, rgba(255, 255, 255, 0.8) 0px 1px 2px inset; border: none;"></div><div style="width: 14px; height: 14px; border-radius: 50%; background: transparent; box-shadow: none; border: 1.5px solid rgba(255, 255, 255, 0.15);"></div><div style="width: 14px; height: 14px; border-radius: 50%; background: transparent; box-shadow: none; border: 1.5px solid rgba(255, 255, 255, 0.15);"></div><div style="width: 14px; height: 14px; border-radius: 50%; background: transparent; box-shadow: none; border: 1.5px solid rgba(255, 255, 255, 0.15);"></div></div></div></div><div class="slide" style="display: flex; align-items: center; gap: 10px; padding: 5px 12px; border-radius: 10px; border-bottom: 1px solid rgba(245, 220, 160, 0.07);"><div style="width: 20px; text-align: right; font-size: 11px; color: rgba(245, 220, 160, 0.35); flex-shrink: 0; font-weight: 600;">6</div><div style="display: flex; gap: 7px; flex: 1 1 0%; justify-content: center;"><div style="width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0; background: radial-gradient(circle at 35% 35%, rgb(240, 236, 224), rgba(240, 236, 224, 0.733)); border: 2px solid rgba(160, 140, 100, 0.6); box-shadow: rgba(0, 0, 0, 0.5) 0px 4px 14px, rgba(255, 255, 255, 0.35) 0px 2px 4px inset; cursor: default; transition: transform 0.12s;"></div><div style="width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0; background: radial-gradient(circle at 35% 35%, rgb(21, 101, 192), rgba(21, 101, 192, 0.733)); border: none; box-shadow: rgba(0, 0, 0, 0.5) 0px 4px 14px, rgba(255, 255, 255, 0.35) 0px 2px 4px inset; cursor: default; transition: transform 0.12s;"></div><div style="width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0; background: radial-gradient(circle at 35% 35%, rgb(245, 200, 0), rgba(245, 200, 0, 0.733)); border: none; box-shadow: rgba(0, 0, 0, 0.5) 0px 4px 14px, rgba(255, 255, 255, 0.35) 0px 2px 4px inset; cursor: default; transition: transform 0.12s;"></div><div style="width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0; background: radial-gradient(circle at 35% 35%, rgb(21, 101, 192), rgba(21, 101, 192, 0.733)); border: none; box-shadow: rgba(0, 0, 0, 0.5) 0px 4px 14px, rgba(255, 255, 255, 0.35) 0px 2px 4px inset; cursor: default; transition: transform 0.12s;"></div></div><div style="flex-shrink: 0;"><div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px; width: 40px; height: 40px; place-items: center; padding: 2px;"><div style="width: 14px; height: 14px; border-radius: 50%; background: radial-gradient(circle at 40% 35%, rgb(74, 74, 106), rgb(13, 13, 26)); box-shadow: rgba(0, 0, 0, 0.8) 0px 1px 4px, rgba(255, 255, 255, 0.15) 0px 1px 2px inset; border: none;"></div><div style="width: 14px; height: 14px; border-radius: 50%; background: radial-gradient(circle at 40% 35%, rgb(74, 74, 106), rgb(13, 13, 26)); box-shadow: rgba(0, 0, 0, 0.8) 0px 1px 4px, rgba(255, 255, 255, 0.15) 0px 1px 2px inset; border: none;"></div><div style="width: 14px; height: 14px; border-radius: 50%; background: radial-gradient(circle at 40% 35%, rgb(74, 74, 106), rgb(13, 13, 26)); box-shadow: rgba(0, 0, 0, 0.8) 0px 1px 4px, rgba(255, 255, 255, 0.15) 0px 1px 2px inset; border: none;"></div><div style="width: 14px; height: 14px; border-radius: 50%; background: transparent; box-shadow: none; border: 1.5px solid rgba(255, 255, 255, 0.15);"></div></div></div></div><div class="slide" style="display: flex; align-items: center; gap: 10px; padding: 5px 12px; border-radius: 10px; border-bottom: none;"><div style="width: 20px; text-align: right; font-size: 11px; color: rgba(245, 220, 160, 0.35); flex-shrink: 0; font-weight: 600;">7</div><div style="display: flex; gap: 7px; flex: 1 1 0%; justify-content: center;"><div style="width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0; background: radial-gradient(circle at 35% 35%, rgb(240, 236, 224), rgba(240, 236, 224, 0.733)); border: 2px solid rgba(160, 140, 100, 0.6); box-shadow: rgba(0, 0, 0, 0.5) 0px 4px 14px, rgba(255, 255, 255, 0.35) 0px 2px 4px inset; cursor: default; transition: transform 0.12s;"></div><div style="width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0; background: radial-gradient(circle at 35% 35%, rgb(21, 101, 192), rgba(21, 101, 192, 0.733)); border: none; box-shadow: rgba(0, 0, 0, 0.5) 0px 4px 14px, rgba(255, 255, 255, 0.35) 0px 2px 4px inset; cursor: default; transition: transform 0.12s;"></div><div style="width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0; background: radial-gradient(circle at 35% 35%, rgb(245, 200, 0), rgba(245, 200, 0, 0.733)); border: none; box-shadow: rgba(0, 0, 0, 0.5) 0px 4px 14px, rgba(255, 255, 255, 0.35) 0px 2px 4px inset; cursor: default; transition: transform 0.12s;"></div><div style="width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0; background: radial-gradient(circle at 35% 35%, rgb(240, 236, 224), rgba(240, 236, 224, 0.733)); border: 2px solid rgba(160, 140, 100, 0.6); box-shadow: rgba(0, 0, 0, 0.5) 0px 4px 14px, rgba(255, 255, 255, 0.35) 0px 2px 4px inset; cursor: default; transition: transform 0.12s;"></div></div><div style="flex-shrink: 0;"><div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px; width: 40px; height: 40px; place-items: center; padding: 2px;"><div style="width: 14px; height: 14px; border-radius: 50%; background: radial-gradient(circle at 40% 35%, rgb(74, 74, 106), rgb(13, 13, 26)); box-shadow: rgba(0, 0, 0, 0.8) 0px 1px 4px, rgba(255, 255, 255, 0.15) 0px 1px 2px inset; border: none;"></div><div style="width: 14px; height: 14px; border-radius: 50%; background: radial-gradient(circle at 40% 35%, rgb(74, 74, 106), rgb(13, 13, 26)); box-shadow: rgba(0, 0, 0, 0.8) 0px 1px 4px, rgba(255, 255, 255, 0.15) 0px 1px 2px inset; border: none;"></div><div style="width: 14px; height: 14px; border-radius: 50%; background: radial-gradient(circle at 40% 35%, rgb(74, 74, 106), rgb(13, 13, 26)); box-shadow: rgba(0, 0, 0, 0.8) 0px 1px 4px, rgba(255, 255, 255, 0.15) 0px 1px 2px inset; border: none;"></div><div style="width: 14px; height: 14px; border-radius: 50%; background: radial-gradient(circle at 40% 35%, rgb(74, 74, 106), rgb(13, 13, 26)); box-shadow: rgba(0, 0, 0, 0.8) 0px 1px 4px, rgba(255, 255, 255, 0.15) 0px 1px 2px inset; border: none;"></div></div></div></div></div><div class="pop" style="background: linear-gradient(135deg, rgba(20, 80, 30, 0.95), rgba(10, 50, 20, 0.95)); border: 2px solid rgba(100, 200, 80, 0.5); border-radius: 18px; padding: 18px 24px; text-align: center; width: 100%; max-width: 380px; margin-bottom: 12px; box-shadow: rgba(0, 0, 0, 0.5) 0px 8px 32px;"><div style="font-size: 34px; margin-bottom: 4px;">🎉</div><div style="font-size: 22px; font-weight: 700; font-family: &quot;Playfair Display&quot;, serif; color: rgb(245, 230, 200); margin-bottom: 4px;">YOU CRACKED IT!</div><div style="font-size: 13px; color: rgba(245, 230, 200, 0.75); margin-bottom: 14px;">Solved in 7 guesses! 🧠</div><button style="padding: 11px 28px; border-radius: 10px; border: none; background: rgb(245, 230, 200); color: rgb(26, 77, 16); font-size: 14px; font-weight: 800; font-family: &quot;Baloo 2&quot;, cursive; cursor: pointer; letter-spacing: 0.5px; box-shadow: rgba(0, 0, 0, 0.3) 0px 2px 10px;">PLAY AGAIN →</button></div></div></div>
+
+<script type="text/babel">
+const { useState } = React;
+
+const COLORS = [
+  { id: "black",  hex: "#1a1a1a", label: "Black"  },
+  { id: "white",  hex: "#f0ece0", label: "White"  },
+  { id: "yellow", hex: "#F5C800", label: "Yellow" },
+  { id: "blue",   hex: "#1565C0", label: "Blue"   },
+  { id: "green",  hex: "#2E7D32", label: "Green"  },
+  { id: "red",    hex: "#C62828", label: "Red"    },
+];
+
+const CODE_LENGTH = 4;
+const MAX_GUESSES = 10;
+
+function generateCode() {
+  return Array.from({ length: CODE_LENGTH }, () =>
+    COLORS[Math.floor(Math.random() * COLORS.length)].id
+  );
+}
+
+function getColorHex(id) {
+  return COLORS.find(c => c.id === id)?.hex ?? "#2a2a3a";
+}
+
+function scoreFeedback(secret, guess) {
+  let blacks = 0, whites = 0;
+  const sLeft = [], gLeft = [];
+  for (let i = 0; i < CODE_LENGTH; i++) {
+    if (guess[i] === secret[i]) blacks++;
+    else { sLeft.push(secret[i]); gLeft.push(guess[i]); }
+  }
+  for (const g of gLeft) {
+    const idx = sLeft.indexOf(g);
+    if (idx !== -1) { whites++; sLeft.splice(idx, 1); }
+  }
+  return { blacks, whites };
+}
+
+function Peg({ color, size = 38, onClick }) {
+  const bg = color ? getColorHex(color) : "transparent";
+  const isWhite = color === "white";
+  return (
+    <div onClick={onClick} style={{
+      width: size, height: size, borderRadius: "50%", flexShrink: 0,
+      background: color
+        ? `radial-gradient(circle at 35% 35%, ${bg}ff, ${bg}bb)`
+        : "rgba(100,60,20,0.35)",
+      border: color
+        ? (isWhite ? "2px solid rgba(160,140,100,0.6)" : "none")
+        : "2px dashed rgba(245,220,160,0.2)",
+      boxShadow: color
+        ? "0 4px 14px rgba(0,0,0,0.5), inset 0 2px 4px rgba(255,255,255,0.35)"
+        : "inset 0 2px 8px rgba(0,0,0,0.5)",
+      cursor: onClick ? "pointer" : "default",
+      transition: "transform 0.12s",
+    }} />
+  );
+}
+
+function FeedbackDots({ blacks, whites }) {
+  const dots = [
+    ...Array(blacks).fill("black"),
+    ...Array(whites).fill("white"),
+    ...Array(CODE_LENGTH - blacks - whites).fill("empty"),
+  ];
+  return (
+    <div style={{
+      display: "grid", gridTemplateColumns: "1fr 1fr",
+      gap: 4, width: 40, height: 40,
+      alignItems: "center", justifyItems: "center", padding: 2,
+    }}>
+      {dots.map((d, i) => (
+        <div key={i} style={{
+          width: 14, height: 14, borderRadius: "50%",
+          background: d === "black"
+            ? "radial-gradient(circle at 40% 35%, #4a4a6a, #0d0d1a)"
+            : d === "white"
+            ? "radial-gradient(circle at 40% 35%, #ffffff, #c0c0d0)"
+            : "transparent",
+          boxShadow: d === "black"
+            ? "0 1px 4px rgba(0,0,0,0.8), inset 0 1px 2px rgba(255,255,255,0.15)"
+            : d === "white"
+            ? "0 1px 5px rgba(255,255,255,0.5), inset 0 1px 2px rgba(255,255,255,0.8)"
+            : "none",
+          border: d === "empty" ? "1.5px solid rgba(255,255,255,0.15)" : "none",
+        }} />
+      ))}
+    </div>
+  );
+}
+
+function ColorPicker({ selected, onSelect }) {
+  return (
+    <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
+      {COLORS.map(c => (
+        <div key={c.id} onClick={() => onSelect(c.id)} title={c.label} style={{
+          width: 46, height: 46, borderRadius: "50%",
+          background: `radial-gradient(circle at 35% 35%, ${c.hex}ff, ${c.hex}bb)`,
+          border: c.id === "white" ? "2px solid rgba(160,140,100,0.5)" : "none",
+          boxShadow: selected === c.id
+            ? `0 0 0 3px #3a1f08, 0 0 0 5px ${c.hex === "#f0ece0" ? "#b0a080" : c.hex}, 0 6px 20px rgba(0,0,0,0.4)`
+            : "0 3px 10px rgba(0,0,0,0.5)",
+          cursor: "pointer",
+          transition: "transform 0.13s, box-shadow 0.13s",
+          transform: selected === c.id ? "scale(1.22)" : "scale(1)",
+        }} />
+      ))}
+    </div>
+  );
+}
+
+function SecretReveal({ code, show }) {
+  return (
+    <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
+      {code.map((c, i) =>
+        show ? (
+          <Peg key={i} color={c} size={38} />
+        ) : (
+          <div key={i} style={{
+            width: 38, height: 38, borderRadius: "50%",
+            background: "radial-gradient(circle at 40% 35%, #3a2010, #1a0c04)",
+            boxShadow: "inset 0 3px 10px rgba(0,0,0,0.9), 0 2px 6px rgba(0,0,0,0.5)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: 17, color: "rgba(245,220,160,0.2)",
+            fontFamily: "'Baloo 2', cursive", fontWeight: 800,
+            border: "2px solid rgba(245,220,160,0.1)",
+          }}>?</div>
+        )
+      )}
+    </div>
+  );
+}
+
+function App() {
+  const [secret, setSecret]           = useState(() => generateCode());
+  const [history, setHistory]         = useState([]);
+  const [current, setCurrent]         = useState(Array(CODE_LENGTH).fill(null));
+  const [selectedColor, setSelected]  = useState(COLORS[0].id);
+  const [gameOver, setGameOver]       = useState(false);
+  const [revealSecret, setReveal]     = useState(false);
+  const [shake, setShake]             = useState(false);
+
+  const won  = gameOver === "win";
+
+  function handlePegClick(i) {
+    if (gameOver) return;
+    setCurrent(prev => {
+      const next = [...prev];
+      next[i] = next[i] === selectedColor ? null : selectedColor;
+      return next;
+    });
+  }
+
+  function handleSubmit() {
+    if (gameOver) return;
+    if (current.some(c => c === null)) {
+      setShake(true);
+      setTimeout(() => setShake(false), 500);
+      return;
+    }
+    const feedback = scoreFeedback(secret, current);
+    const newHistory = [...history, { guess: current, feedback }];
+    setHistory(newHistory);
+    setCurrent(Array(CODE_LENGTH).fill(null));
+    if (feedback.blacks === CODE_LENGTH) {
+      setGameOver("win"); setReveal(true);
+    } else if (newHistory.length >= MAX_GUESSES) {
+      setGameOver("lose"); setReveal(true);
+    }
+  }
+
+  function handleReset() {
+    setSecret(generateCode());
+    setHistory([]);
+    setCurrent(Array(CODE_LENGTH).fill(null));
+    setSelected(COLORS[0].id);
+    setGameOver(false);
+    setReveal(false);
+    setShake(false);
+  }
+
+  const woodBg = `
+    repeating-linear-gradient(92deg, transparent 0px, transparent 2px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 3px),
+    repeating-linear-gradient(88deg, transparent 0px, transparent 8px, rgba(255,255,255,0.04) 8px, rgba(255,255,255,0.04) 9px),
+    repeating-linear-gradient(91deg, transparent 0px, transparent 18px, rgba(0,0,0,0.04) 18px, rgba(0,0,0,0.04) 22px),
+    linear-gradient(170deg, #8B5E3C 0%, #6B3F20 30%, #7A4E2D 55%, #5C3317 80%, #6B3F20 100%)
+  `;
+
+  return (
+    <div style={{
+      minHeight: "100vh",
+      background: woodBg,
+      display: "flex", flexDirection: "column", alignItems: "center",
+      padding: "18px 12px 32px",
+      fontFamily: "'Baloo 2', cursive",
+    }}>
+
+      {/* ── Header ── */}
+      <div style={{ textAlign: "center", marginBottom: 14 }}>
+        <h1 style={{
+          margin: 0, fontSize: 36, fontWeight: 700,
+          fontFamily: "'Playfair Display', serif",
+          color: "#F5E6C8",
+          textShadow: "0 2px 8px rgba(0,0,0,0.5), 0 1px 0 rgba(255,255,255,0.15)",
+          letterSpacing: 2,
+        }}>MASTERMIND</h1>
+        <p style={{ color: "rgba(245,230,200,0.55)", margin: "3px 0 0", fontSize: 11, letterSpacing: 3 }}>
+          CRACK THE CODE · {MAX_GUESSES} GUESSES · 6 COLORS
+        </p>
+      </div>
+
+      {/* ── Secret Code ── */}
+      <div style={{
+        background: "rgba(40,20,8,0.55)", borderRadius: 14,
+        padding: "10px 22px", marginBottom: 10, textAlign: "center",
+        border: "2px solid rgba(245,220,160,0.18)",
+        boxShadow: "0 4px 18px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.07)",
+      }}>
+        <div style={{ fontSize: 10, color: "rgba(245,220,160,0.5)", letterSpacing: 3, marginBottom: 8, fontWeight: 600 }}>
+          SECRET CODE
+        </div>
+        <SecretReveal code={secret} show={revealSecret} />
+      </div>
+
+      {/* ── Legend ── */}
+      <div style={{ display: "flex", gap: 16, marginBottom: 10, fontSize: 11, color: "rgba(245,220,160,0.6)", alignItems: "center" }}>
+        <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
+          <span style={{ display:"inline-block", width:11, height:11, borderRadius:"50%",
+            background:"radial-gradient(circle at 40% 35%, #3a3a3a, #0a0a0a)",
+            boxShadow:"0 1px 4px rgba(0,0,0,0.9), inset 0 1px 1px rgba(255,255,255,0.1)" }} />
+          Right color + spot
+        </span>
+        <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
+          <span style={{ display:"inline-block", width:11, height:11, borderRadius:"50%",
+            background:"radial-gradient(circle at 40% 35%, #ffffff, #d0ccc0)",
+            boxShadow:"0 1px 4px rgba(255,255,255,0.35)",
+            border:"1px solid rgba(180,170,150,0.5)" }} />
+          Right color, wrong spot
+        </span>
+      </div>
+
+      {/* ── Board ── */}
+      <div style={{
+        background: "rgba(40,20,8,0.45)", borderRadius: 18, padding: "10px 8px",
+        border: "2px solid rgba(245,220,160,0.15)",
+        boxShadow: "0 6px 28px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06)",
+        width: "100%", maxWidth: 380, marginBottom: 12,
+      }}>
+        {/* Submitted rows */}
+        {history.map((entry, i) => (
+          <div key={i} className="slide" style={{
+            display: "flex", alignItems: "center", gap: 10,
+            padding: "5px 12px", borderRadius: 10,
+            borderBottom: i < history.length - 1 ? "1px solid rgba(245,220,160,0.07)" : "none",
+          }}>
+            <div style={{ width: 20, textAlign: "right", fontSize: 11, color: "rgba(245,220,160,0.35)", flexShrink: 0, fontWeight: 600 }}>
+              {i + 1}
+            </div>
+            <div style={{ display: "flex", gap: 7, flex: 1, justifyContent: "center" }}>
+              {entry.guess.map((c, j) => <Peg key={j} color={c} size={36} />)}
+            </div>
+            <div style={{ flexShrink: 0 }}>
+              <FeedbackDots blacks={entry.feedback.blacks} whites={entry.feedback.whites} />
+            </div>
+          </div>
+        ))}
+
+        {/* Active input row */}
+        {!gameOver && (
+          <div className={shake ? "shake" : ""} style={{
+            background: "rgba(245,220,160,0.07)",
+            border: "1.5px solid rgba(245,220,160,0.22)",
+            borderRadius: 12, padding: "10px 12px",
+            marginTop: history.length > 0 ? 6 : 0,
+          }}>
+            <div style={{ fontSize: 10, color: "rgba(245,220,160,0.45)", letterSpacing: 3, textAlign: "center", marginBottom: 9, fontWeight: 600 }}>
+              GUESS {history.length + 1} OF {MAX_GUESSES}
+            </div>
+            <div style={{ display: "flex", gap: 8, justifyContent: "center", marginBottom: 12 }}>
+              {Array.from({ length: CODE_LENGTH }).map((_, i) => (
+                <Peg key={i} color={current[i] ?? null} size={44} onClick={() => handlePegClick(i)} />
+              ))}
+            </div>
+            <ColorPicker selected={selectedColor} onSelect={setSelected} />
+            <button onClick={handleSubmit} style={{
+              width: "100%", padding: "11px", marginTop: 12,
+              borderRadius: 10, border: "none",
+              background: current.every(Boolean)
+                ? "linear-gradient(135deg, #8B2500, #C62828)"
+                : "rgba(245,220,160,0.08)",
+              color: current.every(Boolean) ? "#F5E6C8" : "rgba(245,220,160,0.25)",
+              fontSize: 14, fontWeight: 700, fontFamily: "'Baloo 2', cursive",
+              cursor: current.every(Boolean) ? "pointer" : "not-allowed",
+              letterSpacing: 1.5,
+              boxShadow: current.every(Boolean) ? "0 4px 16px rgba(140,37,0,0.5)" : "none",
+              transition: "all 0.2s",
+            }}>
+              CHECK GUESS ✓
+            </button>
+          </div>
+        )}
+
+        {!gameOver && history.length === 0 && (
+          <p style={{ fontSize: 11, color: "rgba(245,220,160,0.3)", textAlign: "center", margin: "4px 0 6px" }}>
+            Pick a color → tap a slot → submit!
+          </p>
+        )}
+      </div>
+
+      {/* ── Game Over Banner ── */}
+      {gameOver && (
+        <div className="pop" style={{
+          background: won
+            ? "linear-gradient(135deg, rgba(20,80,30,0.95), rgba(10,50,20,0.95))"
+            : "linear-gradient(135deg, rgba(100,15,5,0.95), rgba(70,10,0,0.95))",
+          border: `2px solid ${won ? "rgba(100,200,80,0.5)" : "rgba(200,40,20,0.5)"}`,
+          borderRadius: 18, padding: "18px 24px", textAlign: "center",
+          width: "100%", maxWidth: 380, marginBottom: 12,
+          boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
+        }}>
+          <div style={{ fontSize: 34, marginBottom: 4 }}>{won ? "🎉" : "💀"}</div>
+          <div style={{ fontSize: 22, fontWeight: 700, fontFamily: "'Playfair Display', serif", color: "#F5E6C8", marginBottom: 4 }}>
+            {won ? "YOU CRACKED IT!" : "GAME OVER"}
+          </div>
+          <div style={{ fontSize: 13, color: "rgba(245,230,200,0.75)", marginBottom: 14 }}>
+            {won
+              ? `Solved in ${history.length} guess${history.length === 1 ? "" : "es"}! 🧠`
+              : "The code is revealed above."}
+          </div>
+          <button onClick={handleReset} style={{
+            padding: "11px 28px", borderRadius: 10, border: "none",
+            background: "#F5E6C8", color: won ? "#1a4d10" : "#8B1500",
+            fontSize: 14, fontWeight: 800, fontFamily: "'Baloo 2', cursive",
+            cursor: "pointer", letterSpacing: 0.5,
+            boxShadow: "0 2px 10px rgba(0,0,0,0.3)",
+          }}>
+            PLAY AGAIN →
+          </button>
+        </div>
+      )}
+
+      {/* ── New Game button ── */}
+      {!gameOver && (
+        <button onClick={handleReset} style={{
+          padding: "8px 20px", borderRadius: 10,
+          border: "1.5px solid rgba(245,220,160,0.25)",
+          background: "rgba(40,20,8,0.35)", color: "rgba(245,220,160,0.45)",
+          fontSize: 12, fontFamily: "'Baloo 2', cursive",
+          cursor: "pointer", letterSpacing: 0.5,
+        }}>
+          ↺ New Game
+        </button>
+      )}
+    </div>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById("root"));
+root.render(<App />);
+</script>
+
+
+</body></html>
